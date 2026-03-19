@@ -1,0 +1,7 @@
+{
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "name": "Recipe",
+  "description": "您的私人AI营养专家，通过拍照识别、智能配餐与实时咨询，助您科学达成健康目标。"
+}

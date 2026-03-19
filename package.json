@@ -1,0 +1,36 @@
+{
+  "name": "recipe",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "server": "node server/index.js",
+    "dev:all": "concurrently \"npm run server\" \"npm run dev\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "@tailwindcss/vite": "^4.2.1",
+    "clsx": "^2.1.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "framer-motion": "^12.35.2",
+    "lucide-react": "^0.577.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-markdown": "^10.1.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.0.1",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}
