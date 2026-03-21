@@ -1,0 +1,13 @@
+<view class="page">
+  <view class="card">
+    <text class="title">每日配餐方案</text>
+    <text class="muted block">迁移 H5「方案」页：场景选择、调用 aiPlan、换一批、展示三餐卡片。</text>
+    <button class="btn-primary full" bindtap="onTryPlan" loading="{{loading}}">试生成方案（需配置 API 域名）</button>
+    <text class="err" wx:if="{{err}}">{{err}}</text>
+    <view wx:if="{{result}}" class="result">
+      <text class="meal">早：{{result.breakfast.name}} · {{result.breakfast.calories}} kcal</text>
+      <text class="meal">午：{{result.lunch.name}} · {{result.lunch.calories}} kcal</text>
+      <text class="meal">晚：{{result.dinner.name}} · {{result.dinner.calories}} kcal</text>
+    </view>
+  </view>
+</view>

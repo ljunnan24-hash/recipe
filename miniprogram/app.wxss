@@ -1,0 +1,37 @@
+/** 全局样式：与 H5 的微信绿主色一致 */
+page {
+  background-color: #f3f4f6;
+  font-size: 28rpx;
+  color: #111827;
+  box-sizing: border-box;
+}
+
+.safe-area-pb {
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+}
+
+.card {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin: 24rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);
+}
+
+.btn-primary {
+  background: #07c160;
+  color: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx 48rpx;
+  font-size: 30rpx;
+  border: none;
+}
+
+.btn-primary::after {
+  border: none;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 24rpx;
+}

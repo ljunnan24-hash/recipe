@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import { aiScan, aiPlan, aiChat, aiHealthReport, type HealthReportResponse } from './api';
+import { API_BASE, aiScan, aiPlan, aiChat, aiHealthReport, type HealthReportResponse } from './api';
 import { motion, AnimatePresence } from "framer-motion";
 import Markdown from "react-markdown";
 import { 
@@ -430,7 +430,7 @@ const App = () => {
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
 
   useEffect(() => {
-    fetch('/api/health').then(r => r.ok).then(setBackendOk).catch(() => setBackendOk(false));
+    fetch(`${API_BASE}/health`).then((r) => r.ok).then(setBackendOk).catch(() => setBackendOk(false));
   }, []);
 
   // 持久化同步到“数据库”

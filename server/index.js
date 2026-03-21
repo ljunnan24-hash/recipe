@@ -15,6 +15,32 @@ import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 const PORT = Number(process.env.SERVER_PORT) || 4301;
+const isProd = process.env.NODE_ENV === 'production';
+
+// 经 Nginx 反代时获取真实客户端 IP（日志等）
+if (isProd || process.env.TRUST_PROXY === '1') {
+  app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
+}
+
+// 跨域：仅当页面与 API 不同源时需要（同域 Nginx 反代 /api 则不必设置）
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+if (allowedOrigins.length > 0) {
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    }
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+    next();
+  });
+}
 
 // 豆包（火山方舟）配置
 const doubaoEndpoint = process.env.DOUBAO_ENDPOINT || 'https://ark.cn-beijing.volces.com/api/v3/responses';
@@ -540,25 +566,28 @@ app.get('/api/health', (_, res) => {
   res.json({ ok: true, service: 'recipe-api' });
 });
 
-// 豆包连通性测试：浏览器访问 /api/test-doubao 即可验证 Key 和接口是否正常
-app.get('/api/test-doubao', async (_, res) => {
-  if (!doubaoApiKey) {
-    return res.json({ ok: false, error: '未配置 DOUBAO_API_KEY' });
-  }
-  try {
-    const body = {
-      model: doubaoModel,
-      input: [
-        { role: 'user', content: [{ type: 'input_text', text: '只说一句话：你好' }] },
-      ],
-    };
-    const data = await callDoubao(body);
-    const text = extractDoubaoText(data);
-    res.json({ ok: true, text: text || '(空回复)' });
-  } catch (e) {
-    res.json({ ok: false, error: e.message });
-  }
-});
+// 调试接口：生产环境默认关闭，避免泄露 Key/库表信息；需要排查时可设 ENABLE_DEBUG_ROUTES=1
+const debugRoutes = !isProd || process.env.ENABLE_DEBUG_ROUTES === '1';
+if (debugRoutes) {
+  app.get('/api/test-doubao', async (_, res) => {
+    if (!doubaoApiKey) {
+      return res.json({ ok: false, error: '未配置 DOUBAO_API_KEY' });
+    }
+    try {
+      const body = {
+        model: doubaoModel,
+        input: [
+          { role: 'user', content: [{ type: 'input_text', text: '只说一句话：你好' }] },
+        ],
+      };
+      const data = await callDoubao(body);
+      const text = extractDoubaoText(data);
+      res.json({ ok: true, text: text || '(空回复)' });
+    } catch (e) {
+      res.json({ ok: false, error: e.message });
+    }
+  });
+}
 
 // 食堂菜品列表（供前端展示或调试）
 app.get('/api/canteen/dishes', async (req, res) => {
@@ -572,31 +601,31 @@ app.get('/api/canteen/dishes', async (req, res) => {
   }
 });
 
-// Supabase 连通性测试（用于排查“数据库无菜品”究竟是空表还是连不上）
-app.get('/api/test-supabase', async (_, res) => {
-  if (!supabase) {
-    return res.json({ ok: false, error: '未配置 SUPABASE_ANON_KEY' });
-  }
-  try {
-    const tryTable = async (table) => {
-      const { data, error } = await supabase.from(table).select('*').limit(1);
-      return { table, data, error };
-    };
-
-    const r1 = await tryTable('restaurant_menu');
-    if (!r1.error) {
-      return res.json({ ok: true, table: r1.table, sampleRows: Array.isArray(r1.data) ? r1.data.length : 0 });
+if (debugRoutes) {
+  app.get('/api/test-supabase', async (_, res) => {
+    if (!supabase) {
+      return res.json({ ok: false, error: '未配置 SUPABASE_ANON_KEY' });
     }
+    try {
+      const tryTable = async (table) => {
+        const { data, error } = await supabase.from(table).select('*').limit(1);
+        return { table, data, error };
+      };
 
-    const msg1 = String(r1.error?.message || '');
-    if (msg1.toLowerCase().includes('fetch failed')) {
-      return res.json({ ok: false, error: '无法连接到 Supabase（网络/防火墙限制或 Supabase 服务不可达）' });
-    }
+      const r1 = await tryTable('restaurant_menu');
+      if (!r1.error) {
+        return res.json({ ok: true, table: r1.table, sampleRows: Array.isArray(r1.data) ? r1.data.length : 0 });
+      }
 
-    const r2 = await tryTable('canteen_dishes');
-    if (!r2.error) {
-      return res.json({ ok: true, table: r2.table, sampleRows: Array.isArray(r2.data) ? r2.data.length : 0 });
-    }
+      const msg1 = String(r1.error?.message || '');
+      if (msg1.toLowerCase().includes('fetch failed')) {
+        return res.json({ ok: false, error: '无法连接到 Supabase（网络/防火墙限制或 Supabase 服务不可达）' });
+      }
+
+      const r2 = await tryTable('canteen_dishes');
+      if (!r2.error) {
+        return res.json({ ok: true, table: r2.table, sampleRows: Array.isArray(r2.data) ? r2.data.length : 0 });
+      }
 
     const msg2 = String(r2.error?.message || '');
     const missingRestaurant = msg1.includes("Could not find the table 'public.restaurant_menu'") || msg1.toLowerCase().includes('schema cache');
@@ -610,7 +639,8 @@ app.get('/api/test-supabase', async (_, res) => {
   } catch (e) {
     res.json({ ok: false, error: e?.message || 'test failed' });
   }
-});
+  });
+}
 
 // 食物识别：上传图片 base64，调用豆包识图并返回营养成分 JSON
 // 结构化字段（后续可与《中国食物成分表》结合）：
@@ -1138,5 +1168,7 @@ app.post('/api/ai/report', async (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Recipe API 运行在 http://localhost:${PORT}`);
+  console.log(
+    `[recipe-api] 监听 0.0.0.0:${PORT} | NODE_ENV=${process.env.NODE_ENV || '(未设置)'} | 调试路由=${debugRoutes ? '开' : '关'}`
+  );
 });

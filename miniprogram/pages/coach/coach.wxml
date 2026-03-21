@@ -1,0 +1,10 @@
+<view class="page">
+  <view class="card">
+    <text class="title">营养咨询</text>
+    <text class="muted block">迁移 H5 对话 UI；接口：aiChat(message, systemInstruction)。</text>
+    <input class="input" placeholder="输入你的问题" value="{{msg}}" bindinput="onInput" />
+    <button class="btn-primary full" bindtap="onSend" loading="{{loading}}">发送</button>
+    <text class="err" wx:if="{{err}}">{{err}}</text>
+    <view wx:if="{{reply}}" class="reply">{{reply}}</view>
+  </view>
+</view>

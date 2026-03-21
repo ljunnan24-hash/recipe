@@ -1,0 +1,9 @@
+{
+  "desc": "默认允许被微信索引（可按需改为 disallow）",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}

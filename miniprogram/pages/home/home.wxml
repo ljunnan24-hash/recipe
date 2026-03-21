@@ -1,0 +1,10 @@
+<view class="page">
+  <view class="card">
+    <text class="title">今日摄入</text>
+    <text class="muted block">此处迁移 H5「数据」页：环形进度、进食列表、饮水等。</text>
+    <text class="muted block mt">本地键与 H5 一致：{{intakeKey}}</text>
+  </view>
+  <view class="card">
+    <text class="hint">开发提示：用 utils/storage.js 读写 wx_intake_、wx_water_ 与 wx_user_profile。</text>
+  </view>
+</view>

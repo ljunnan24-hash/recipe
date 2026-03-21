@@ -58,7 +58,7 @@ recipe/
 ├── index.tsx           # 应用入口与全部 UI 逻辑（单文件架构）
 ├── index.css           # 全局样式、Tailwind 入口、@theme、safe-area/no-scrollbar
 ├── api.ts              # 前端 API 封装：aiScan / aiPlan / aiChat，请求 /api 代理到后端
-├── vite.config.ts      # Vite 配置：React、Tailwind、端口 3000、/api 代理到后端
+├── vite.config.ts      # Vite 配置：React、Tailwind、端口 4300、/api 代理到 4301
 ├── tsconfig.json       # TypeScript：ES2022、JSX、paths @/*
 ├── package.json        # 依赖与脚本（含 server、dev:all）
 ├── .env.local          # 本地环境变量（含 DOUBAO_API_KEY 等，仅后端读取，不提交）
@@ -68,6 +68,11 @@ recipe/
 │   ├── index.js        # 后端服务：/api/health、/api/ai/*、/api/canteen/dishes，集成 Supabase
 │   └── supabase/
 │       └── schema.sql  # Supabase 建表与示例数据（canteen_dishes）
+├── miniprogram/        # 微信原生小程序（WXML/WXSS），与同一 Node 后端联调；说明见 docs/MINIPROGRAM_NATIVE.md
+├── docs/
+│   ├── DEPLOY.md       # 生产部署、Nginx、备案与上线顺序
+│   └── MINIPROGRAM_NATIVE.md
+├── .env.example        # 服务端环境变量示例（复制为 .env / .env.local，勿提交密钥）
 └── README.md           # 本文件
 ```
 
@@ -86,17 +91,17 @@ recipe/
 # 安装依赖
 npm install
 
-# 开发：同时启动后端（3001）与前端（3000），前端将 /api 代理到后端
+# 开发：同时启动后端（4301）与前端（4300），前端将 /api 代理到后端
 npm run dev:all
 
 # 或分开启动：先开一个终端运行后端，再开一个运行前端
-npm run server    # 后端 http://localhost:3001
-npm run dev       # 前端 http://localhost:3000
+npm run server    # 后端 http://localhost:4301
+npm run dev       # 前端 http://localhost:4300
 
-# 生产构建
+# 生产构建（同域 Nginx 反代 /api 时无需 VITE_API_BASE）
 npm run build
 
-# 预览生产构建（需另行运行后端并配置前端请求地址，见下方环境变量）
+# 预览生产构建（需另行运行后端；跨域 API 见 .env.production 中 VITE_API_BASE）
 npm run preview
 ```
 
@@ -104,10 +109,10 @@ npm run preview
 
 ## 环境变量
 
-在项目根目录创建 `.env.local` 或 `.env`（已加入 .gitignore），供**后端**读取：
+在项目根目录创建 `.env.local` 或 `.env`（已加入 .gitignore），供**后端**读取。完整项见 **`.env.example`**。
 
 ```env
-SERVER_PORT=3001
+SERVER_PORT=4301
 
 # 豆包（火山方舟）
 DOUBAO_API_KEY=你的_豆包_API_Key
@@ -116,12 +121,16 @@ DOUBAO_MODEL=doubao-seed-2-0-mini-260215
 # Supabase（深大食堂菜单）
 SUPABASE_URL=你的_Supabase_URL
 SUPABASE_ANON_KEY=你的_Supabase_anon_key
+
+# 服务器正式环境建议增加：NODE_ENV=production
 ```
 
 - `DOUBAO_API_KEY`：后端调用豆包 responses API 时使用，**不会出现在前端代码或构建产物中**。
 - `DOUBAO_MODEL`：豆包模型名称，示例为 `doubao-seed-2-0-mini-260215`，可按实际需要替换。
 - `DOUBAO_VISION_MODEL`：可选，**拍照识别**使用的模型，须为支持图像输入的模型（如豆包视觉模型）。不填则与 `DOUBAO_MODEL` 相同；若当前模型不支持识图，请在火山方舟控制台查看支持「图片理解」的模型 ID 并填在此处。
-- `SERVER_PORT`：可选，后端监听端口，默认 3001。
+- `SERVER_PORT`：可选，后端监听端口，默认 **4301**（与 `vite.config.ts` 代理一致）。
+
+**生产部署**（腾讯云 Nginx、PM2、备案与小程序域名）：见 **[docs/DEPLOY.md](./docs/DEPLOY.md)**。
 - `SUPABASE_URL`：可选，Supabase 项目 URL，默认 `https://hqwonhdrgqlasbvkicmu.supabase.co`。
 - `SUPABASE_ANON_KEY`：可选，Supabase 匿名密钥（Project Settings → API → anon public）。未配置时「深大南区」方案仍可生成，但不从数据库拉取菜品，推荐为通用描述。
 

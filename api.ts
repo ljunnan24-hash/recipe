@@ -1,9 +1,19 @@
 /**
  * 前端调用的后端 API 封装
  * 所有 AI 请求走后端代理，不在前端暴露 DOUBAO_API_KEY
+ *
+ * - 开发：Vite 将 /api 代理到本地后端，使用相对路径 `/api` 即可。
+ * - 生产（推荐）：Nginx 同域反代 `/api` → Node，构建时 **不要** 设置 VITE_API_BASE，仍用 `/api`。
+ * - 生产（API 独立子域等跨域）：构建前在 `.env.production` 设置
+ *   `VITE_API_BASE=https://api.你的域名.com/api`，并在服务端配置 `ALLOWED_ORIGINS`。
  */
-
-const API_BASE = '/api';
+export const API_BASE = (() => {
+  const raw = import.meta.env.VITE_API_BASE;
+  if (raw != null && String(raw).trim() !== '') {
+    return String(raw).replace(/\/$/, '');
+  }
+  return '/api';
+})();
 
 async function request<T>(
   path: string,
