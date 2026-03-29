@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { API_BASE, aiScan, aiPlan, aiChat, aiHealthReport, type HealthReportResponse } from './api';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { motion, AnimatePresence } from "framer-motion";
 import Markdown from "react-markdown";
 import { 
@@ -2190,6 +2191,7 @@ const App = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <SpeedInsights />
     </div>
   );
 };
