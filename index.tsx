@@ -2166,7 +2166,7 @@ const App = () => {
                      {authSending ? '发送中…' : '发送登录链接（免密码）'}
                    </button>
                    <p className="text-[10px] text-gray-400 leading-relaxed">
-                     说明：会发送一封登录邮件，点击后自动回到当前网站完成登录（需在 Supabase 控制台配置允许的站点 URL）。
+                     说明：会发送一封登录邮件，点击后自动回到当前网站完成登录。
                    </p>
                  </div>
                )}
