@@ -5,6 +5,8 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode }) => {
     return {
+      // 允许前端读取 VITE_* 与 SUPABASE_*（与 server .env 同名时本地可只配一份）
+      envPrefix: ['VITE_', 'SUPABASE_'],
       server: {
         // 固定前端端口，避免 Vite 自动换端口导致「看起来像旧版本」
         port: 4300,

@@ -49,14 +49,17 @@ const doubaoModel = process.env.DOUBAO_MODEL || 'doubao-seed-2-0-mini-260215';
 // 识图需使用支持视觉的模型，未配置时用通用模型（部分种子模型不支持图片）
 const doubaoVisionModel = process.env.DOUBAO_VISION_MODEL || doubaoModel;
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://hqwonhdrgqlasbvkicmu.supabase.co';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseUrl = (process.env.SUPABASE_URL || '').trim();
+const supabaseAnonKey = (process.env.SUPABASE_ANON_KEY || '').trim();
 
 if (!doubaoApiKey) {
   console.warn('警告: 未设置 DOUBAO_API_KEY，AI 相关接口将返回 503。请在 .env 或 .env.local 中配置。');
 }
 if (!supabaseAnonKey) {
   console.warn('警告: 未设置 SUPABASE_ANON_KEY，深大食堂方案将无法从数据库拉取菜品，仍使用通用描述。');
+}
+if (!supabaseUrl && supabaseAnonKey) {
+  console.warn('警告: 已设置 SUPABASE_ANON_KEY 但未设置 SUPABASE_URL，Supabase 相关能力不可用。');
 }
 
 function fetchWithTimeout(url, init = {}) {
@@ -66,9 +69,52 @@ function fetchWithTimeout(url, init = {}) {
   return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(t));
 }
 
-const supabase = supabaseAnonKey
+const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey, { global: { fetch: fetchWithTimeout } })
   : null;
+
+function createSupabaseForUserJwt(jwt) {
+  if (!supabaseUrl || !supabaseAnonKey || !jwt) return null;
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      fetch: fetchWithTimeout,
+      headers: { Authorization: `Bearer ${jwt}` },
+    },
+  });
+}
+
+function getBearerJwt(req) {
+  const h = req.headers?.authorization || req.headers?.Authorization;
+  if (!h || typeof h !== 'string') return null;
+  const m = h.match(/^Bearer\s+(.+)$/i);
+  return m ? m[1].trim() : null;
+}
+
+async function loadUserProfileFromDb(req) {
+  const jwt = getBearerJwt(req);
+  if (!jwt) return null;
+  const sb = createSupabaseForUserJwt(jwt);
+  if (!sb) return null;
+  const { data, error } = await sb
+    .from('user_profiles')
+    .select('profile,updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.warn('[user_profiles] read failed', error.message || error);
+    return null;
+  }
+  if (!data || !data.profile || typeof data.profile !== 'object') return null;
+  return data.profile;
+}
+
+function mergeProfiles(dbProfile, clientProfile) {
+  const a = dbProfile && typeof dbProfile === 'object' ? dbProfile : {};
+  const b = clientProfile && typeof clientProfile === 'object' ? clientProfile : {};
+  // 客户端优先（最新编辑），数据库补齐缺省字段
+  return { ...a, ...b };
+}
 
 /** 调用豆包 responses 接口 */
 async function callDoubao(body) {
@@ -806,6 +852,7 @@ app.post('/api/ai/plan', async (req, res) => {
     if (!prompt) {
       return res.status(400).json({ error: '缺少 prompt' });
     }
+    const mergedProfile = mergeProfiles(await loadUserProfileFromDb(req), profile);
     if (selectedCanteen === 'szu_south' && !supabase) {
       return res.status(503).json({ error: '未配置 SUPABASE_ANON_KEY，无法从深大食堂数据库挑选菜品' });
     }
@@ -821,7 +868,7 @@ app.post('/api/ai/plan', async (req, res) => {
       if (!dishes.length) {
         return res.status(503).json({ error: '深大食堂数据库暂无菜品数据（canteen_dishes 为空）' });
       }
-      const planned = planFromCanteenDishes(dishes, profile, targets, avoidNames);
+      const planned = planFromCanteenDishes(dishes, mergedProfile, targets, avoidNames);
       if (!planned) {
         return res.status(502).json({ error: '无法从数据库菜谱中生成方案，请补充菜谱数据后重试' });
       }
@@ -830,6 +877,11 @@ app.post('/api/ai/plan', async (req, res) => {
 
     let finalPrompt = prompt;
     let allowedDishNames = null;
+    const avoidSet = new Set(
+      (Array.isArray(avoidNames) ? avoidNames : [])
+        .map((s) => String(s || '').trim())
+        .filter(Boolean)
+    );
     if (selectedCanteen === 'szu_south' && supabase) {
       const dishes = await getCanteenDishes('szu_south');
       if (!dishes.length) {
@@ -859,6 +911,9 @@ app.post('/api/ai/plan', async (req, res) => {
         finalPrompt = dishBlock + prompt;
       }
     }
+    finalPrompt += `\n\n【权威用户档案（服务器侧，来自登录用户云端档案；如与上文冲突以此为准）】\n${JSON.stringify(
+      mergedProfile
+    )}\n`;
     const body = {
       model: doubaoModel,
       text: { format: { type: 'json_object' } },
@@ -884,12 +939,25 @@ app.post('/api/ai/plan', async (req, res) => {
       }
     };
 
+    const containsAvoid = (name) => {
+      const n = String(name || '').trim();
+      if (!n) return false;
+      if (avoidSet.size === 0) return false;
+      if (avoidSet.has(n)) return true;
+      // 兜底：避免“名称带后缀/组合名”绕过精确匹配
+      for (const a of avoidSet) {
+        if (a && n.includes(a)) return true;
+      }
+      return false;
+    };
+
     const isValidPlan = (plan) => {
       const keys = ['breakfast', 'lunch', 'dinner'];
       for (const k of keys) {
         const item = plan?.[k];
         if (!item || typeof item !== 'object') return false;
         if (typeof item.name !== 'string' || !item.name.trim()) return false;
+        if (containsAvoid(item.name)) return false;
         const cals = Number(item.calories);
         if (!Number.isFinite(cals) || cals <= 0) return false;
         if (typeof item.desc !== 'string' || !item.desc.trim()) return false;
@@ -898,30 +966,44 @@ app.post('/api/ai/plan', async (req, res) => {
       return true;
     };
 
-    let data = await callDoubaoWithJsonFormatFallback(body);
-    let result = parsePlan(data);
-
-    if (!isValidPlan(result)) {
-      // 轻量重试一次：常见原因是模型没按菜单选、或漏字段
-      const retryBody = {
-        ...body,
-        input: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'input_text',
-                text: `${finalPrompt}\n\n注意：你上一轮输出不符合要求（缺字段/非严格 JSON/菜名不在列表）。请严格修正后只输出 JSON。`,
-              },
-            ],
-          },
-        ],
-      };
-      data = await callDoubaoWithJsonFormatFallback(retryBody);
-      result = parsePlan(data);
+    // 额外重试：解决“换一批只在两套方案间切换/忽略 avoidNames”
+    let result = null;
+    let lastText = '';
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const extraRule = avoidSet.size
+        ? `\n\n严格约束：不得使用/包含以下菜名（换一批去重）：${Array.from(avoidSet).join('、')}。`
+        : '';
+      const attemptBody =
+        attempt === 0
+          ? body
+          : {
+              ...body,
+              input: [
+                {
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'input_text',
+                      text:
+                        `${finalPrompt}${extraRule}\n\n` +
+                        `注意：你上一轮输出不符合要求（缺字段/非严格 JSON/菜名重复）。` +
+                        `请严格修正后只输出 JSON。` +
+                        (lastText ? `（上一轮原文片段：${String(lastText).slice(0, 120)}）` : ''),
+                    },
+                  ],
+                },
+              ],
+            };
+      const data = await callDoubaoWithJsonFormatFallback(attemptBody);
+      lastText = extractDoubaoText(data) || '';
+      const parsed = parsePlan(data);
+      if (isValidPlan(parsed)) {
+        result = parsed;
+        break;
+      }
     }
 
-    if (!isValidPlan(result)) {
+    if (!result || !isValidPlan(result)) {
       return res.status(502).json({ error: 'AI 返回的方案不符合要求，请点击“换一批推荐”重试' });
     }
 
@@ -981,11 +1063,14 @@ app.post('/api/ai/chat', async (req, res) => {
     return res.status(503).json({ error: 'AI 服务未配置 DOUBAO_API_KEY' });
   }
   try {
-    const { message, systemInstruction } = req.body;
+    const { message, systemInstruction, profile } = req.body;
     if (!message) {
       return res.status(400).json({ error: '缺少 message' });
     }
-    const sys = systemInstruction || '你是一位专业的AI营养专家。';
+    const mergedProfile = mergeProfiles(await loadUserProfileFromDb(req), profile);
+    const sys =
+      `${systemInstruction || '你是一位专业的AI营养专家。'}\n\n` +
+      `【权威用户档案（服务器侧，来自登录用户云端档案；如与上文冲突以此为准）】\n${JSON.stringify(mergedProfile)}\n`;
     let parsedIntent = null;
     try {
       parsedIntent = await parseCoachIntent(message);
@@ -1045,15 +1130,16 @@ app.post('/api/ai/report', async (req, res) => {
   }
   try {
     const { profile, targets } = req.body || {};
-    if (!profile || typeof profile !== 'object') {
-      return res.status(400).json({ error: '缺少 profile' });
+    const mergedProfile = mergeProfiles(await loadUserProfileFromDb(req), profile);
+    if (!mergedProfile || typeof mergedProfile !== 'object') {
+      return res.status(400).json({ error: '缺少 profile（或未登录导致无法读取云端档案）' });
     }
     if (!targets || typeof targets !== 'object') {
       return res.status(400).json({ error: '缺少 targets' });
     }
 
     const prompt = `你是一位专业的营养与训练教练，请为用户生成“健康报告”。\n\n` +
-      `【用户档案 profile】\n${JSON.stringify(profile)}\n\n` +
+      `【用户档案 profile】\n${JSON.stringify(mergedProfile)}\n\n` +
       `【目标摄入 targets】\n${JSON.stringify(targets)}\n\n` +
       `要求：\n` +
       `1) 报告必须可解释：明确说明“方案推荐”是基于哪些信息（目标、活动量、限制/忌口、健康状况等）。\n` +
@@ -1157,7 +1243,7 @@ app.post('/api/ai/report', async (req, res) => {
       return res.json({
         aiOk: false,
         generatedAt: new Date().toISOString(),
-        reportMarkdown: buildFallback(profile, targets, e?.message || '调用失败'),
+        reportMarkdown: buildFallback(mergedProfile, targets, e?.message || '调用失败'),
         targets,
       });
     }

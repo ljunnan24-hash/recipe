@@ -35,6 +35,23 @@ npm run build
 
 产物在 `dist/`，由 Nginx `root` 指向该目录。
 
+### 邮箱登录 + 云端用户档案（Supabase）
+
+1. 在 Supabase SQL Editor 执行：`docs/supabase-user-profiles.sql`（创建 `user_profiles` 表 + RLS）。
+2. 若需「保存方案后下次登录仍可见」：再执行 `docs/supabase-saved-meal-plan.sql`（表 `user_saved_meal_plan`）。
+3. 若需「饮食记录 / 饮水 / 按日事件 / 健康报告」云端同步：再执行 `docs/supabase-daily-logs-and-report.sql`（表 `user_daily_log`、`user_health_report`）。
+4. Supabase Authentication → **URL Configuration**：把 `Site URL` 设为你的线上站点（如 `https://你的域名/`），并把 `Redirect URLs` 加入同域名（开发可加 `http://localhost:5173/`）。
+5. 服务器构建前在 `~/recipe/.env.production`（或构建环境变量）写入：
+
+```env
+VITE_SUPABASE_URL=你的_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY=你的_SUPABASE_ANON_KEY
+```
+
+> 说明：`anon key` 本来就是“可公开”的浏览器密钥；真正敏感的是服务端 `.env` 里的 `DOUBAO_API_KEY`。
+
+6. 重新 `npm run build` 并部署 `dist/`。
+
 若 API 在 **独立子域**（如 `api.example.com`），则在构建前增加 `.env.production`：
 
 ```env

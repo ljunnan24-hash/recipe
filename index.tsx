@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import { API_BASE, aiScan, aiPlan, aiChat, aiHealthReport, type HealthReportResponse } from './api';
+import { API_BASE, aiScan, aiPlan, aiChat, aiHealthReport, setSupabaseAccessToken, type HealthReportResponse } from './api';
+import { supabase } from './supabaseClient';
 import { motion, AnimatePresence } from "framer-motion";
 import Markdown from "react-markdown";
 import { 
@@ -131,6 +132,15 @@ const LocalDB = {
       const next = Array.isArray(arr) ? [...arr, event] : [event];
       // 防止无限增长（日活很低时基本不会触发，但上限要有）
       localStorage.setItem(key, JSON.stringify(next.slice(-300)));
+    } catch {
+      // ignore
+    }
+  },
+  setEvents: (dateKey: string, data: any[]) => {
+    try {
+      const key = `wx_user_events_${dateKey}`;
+      const arr = Array.isArray(data) ? data : [];
+      localStorage.setItem(key, JSON.stringify(arr.slice(-300)));
     } catch {
       // ignore
     }
@@ -346,12 +356,73 @@ const App = () => {
   const [isNewUser, setIsNewUser] = useState(() => localStorage.getItem('wx_onboarding_complete') !== 'true');
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [activeTab, setActiveTab] = useState<'home' | 'scan' | 'recipes' | 'profile' | 'coach'>('home');
-  const [loading, setLoading] = useState(false);
+  // 不同模块独立 loading，避免“AI专家生成中导致方案不可用”
+  const [scanLoading, setScanLoading] = useState(false);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<MealType>('lunch');
   const [selectedCanteen, setSelectedCanteen] = useState<CanteenType>(() => LocalDB.getSelectedCanteen());
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+  const [authEmail, setAuthEmail] = useState('');
+  const [authSending, setAuthSending] = useState(false);
+  const [authedEmail, setAuthedEmail] = useState<string | null>(null);
   
   const todayKey = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let alive = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!alive) return;
+      setAuthedEmail(data.session?.user?.email ?? null);
+      setSupabaseAccessToken(data.session?.access_token ?? null);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthedEmail(session?.user?.email ?? null);
+      setSupabaseAccessToken(session?.access_token ?? null);
+    });
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  const sendLoginLink = async () => {
+    if (!supabase) {
+      showToast('未配置 Supabase（请设置 VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）', 'error');
+      return;
+    }
+    const email = authEmail.trim();
+    if (!email) return;
+    setAuthSending(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) throw error;
+      showToast('已发送登录链接，请去邮箱点击完成登录');
+    } catch (e) {
+      showToast((e as any)?.message || '发送失败，请重试', 'error');
+    } finally {
+      setAuthSending(false);
+    }
+  };
+
+  const logout = async () => {
+    if (!supabase) return;
+    try {
+      await supabase.auth.signOut();
+      setSupabaseAccessToken(null);
+      setPlannedMeals(null);
+      lastDailyCloudSigRef.current = '';
+      lastHealthCloudSigRef.current = '';
+      showToast('已退出登录');
+    } catch {
+      showToast('退出失败，请重试', 'error');
+    }
+  };
 
   // 从 "DB" 初始化用户信息
   const [profile, setProfile] = useState<UserProfile>(() => {
@@ -378,7 +449,7 @@ const App = () => {
       diningCondition: 'takeout',
       habits: [],
       activityLevel: 'moderate',
-      trackingNeeds: ['calories', 'protein']
+      trackingNeeds: ['calories', 'protein'],
     };
     if (!saved) return defaults;
     return {
@@ -389,7 +460,7 @@ const App = () => {
       healthConditions: Array.isArray(saved.healthConditions) ? saved.healthConditions : [],
       dietaryRestrictions: Array.isArray(saved.dietaryRestrictions) ? saved.dietaryRestrictions : [],
       habits: Array.isArray(saved.habits) ? saved.habits : [],
-      trackingNeeds: Array.isArray(saved.trackingNeeds) ? saved.trackingNeeds : ['calories', 'protein']
+      trackingNeeds: Array.isArray(saved.trackingNeeds) ? saved.trackingNeeds : ['calories', 'protein'],
     };
   });
 
@@ -403,6 +474,13 @@ const App = () => {
   const [waterIntake, setWaterIntake] = useState<number>(() => {
     return LocalDB.getWaterIntake(todayKey);
   });
+
+  /** 事件写入 localStorage 后 bump，用于触发云端 user_daily_log 同步 */
+  const [dailyLogEventsTick, setDailyLogEventsTick] = useState(0);
+  const pushDayEvent = (ev: any) => {
+    LocalDB.pushEvent(todayKey, ev);
+    setDailyLogEventsTick((n) => n + 1);
+  };
 
   const [scanResult, setScanResult] = useState<(Partial<NutritionData> & { estimatedWeightGrams?: number; portionSize?: string }) | null>(null);
   const [scanWeight, setScanWeight] = useState<number | null>(null);
@@ -427,11 +505,128 @@ const App = () => {
   ]);
   const [userInput, setUserInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const remoteProfileTimerRef = useRef<number | null>(null);
+  const lastPushedProfileSigRef = useRef<string>('');
+  const lastDailyCloudSigRef = useRef<string>('');
+  const lastHealthCloudSigRef = useRef<string>('');
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetch(`${API_BASE}/health`).then((r) => r.ok).then(setBackendOk).catch(() => setBackendOk(false));
   }, []);
+
+  const pullRemoteProfile = async () => {
+    if (!supabase) return;
+    const { data: sess } = await supabase.auth.getSession();
+    const uid = sess.session?.user?.id;
+    if (!uid) return;
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('profile,selected_canteen,updated_at')
+      .eq('user_id', uid)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[user_profiles] pull failed', error.message);
+      return;
+    }
+    if (!data?.profile || typeof data.profile !== 'object') return;
+
+    const remotePayload = data.profile as any;
+    const { profileRevision: _pr, ...remoteProfile } = remotePayload;
+
+    setProfile((prev) => ({ ...prev, ...(remoteProfile as UserProfile) }));
+    const c = data.selected_canteen;
+    if (c === 'none' || c === 'szu_south') {
+      setSelectedCanteen(c);
+    }
+
+    // 拉取后避免立刻把同一份数据再 push 一遍
+    try {
+      lastPushedProfileSigRef.current = JSON.stringify({
+        profile: remoteProfile,
+        selected_canteen: c === 'none' || c === 'szu_south' ? c : undefined,
+      });
+    } catch {
+      lastPushedProfileSigRef.current = '';
+    }
+  };
+
+  useEffect(() => {
+    if (!supabase || !authedEmail) return;
+    void pullRemoteProfile();
+  }, [authedEmail, supabase]);
+
+  // 登录后拉取当日饮食/饮水/事件与健康报告（云端）
+  useEffect(() => {
+    if (!supabase || !authedEmail) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user?.id;
+      if (!uid || cancelled) return;
+
+      const { data: row, error } = await supabase
+        .from('user_daily_log')
+        .select('intake,water_ml,events')
+        .eq('user_id', uid)
+        .eq('date_key', todayKey)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (error) {
+        console.warn('[user_daily_log] pull failed', error.message);
+      } else if (row) {
+        const intake = Array.isArray(row.intake) ? row.intake : [];
+        const water = Number(row.water_ml) || 0;
+        const events = Array.isArray(row.events) ? row.events : [];
+        setDailyIntake(intake as NutritionData[]);
+        setWaterIntake(water);
+        LocalDB.saveDailyIntake(todayKey, intake);
+        LocalDB.saveWaterIntake(todayKey, water);
+        LocalDB.setEvents(todayKey, events);
+        try {
+          lastDailyCloudSigRef.current = JSON.stringify({ intake, water_ml: water, events });
+        } catch {
+          lastDailyCloudSigRef.current = '';
+        }
+      }
+
+      const { data: hrRow, error: hrErr } = await supabase
+        .from('user_health_report')
+        .select('report')
+        .eq('user_id', uid)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (hrErr) {
+        console.warn('[user_health_report] pull failed', hrErr.message);
+        return;
+      }
+      if (hrRow?.report && typeof hrRow.report === 'object') {
+        const r = hrRow.report as HealthReport;
+        if (typeof r.generatedAt === 'string' && typeof r.reportMarkdown === 'string') {
+          setHealthReport(r);
+          try {
+            localStorage.setItem('wx_health_report', JSON.stringify(r));
+          } catch {
+            // ignore
+          }
+          try {
+            lastHealthCloudSigRef.current = JSON.stringify(r);
+          } catch {
+            lastHealthCloudSigRef.current = '';
+          }
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authedEmail, supabase, todayKey]);
 
   // 持久化同步到“数据库”
   useEffect(() => { LocalDB.saveProfile(profile); }, [profile]);
@@ -449,7 +644,145 @@ const App = () => {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, loading]);
+  }, [chatMessages]);
+
+  // 登录后把档案同步到 Supabase（RLS：仅本人可读写）
+  useEffect(() => {
+    if (!supabase || !authedEmail) return;
+
+    if (remoteProfileTimerRef.current) {
+      window.clearTimeout(remoteProfileTimerRef.current);
+      remoteProfileTimerRef.current = null;
+    }
+
+    let alive = true;
+    remoteProfileTimerRef.current = window.setTimeout(async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const user = sess.session?.user;
+        if (!user) return;
+
+        let sig = '';
+        try {
+          sig = JSON.stringify({ profile, selectedCanteen });
+        } catch {
+          sig = '';
+        }
+        if (sig && sig === lastPushedProfileSigRef.current) return;
+
+        const { error } = await supabase.from('user_profiles').upsert(
+          {
+            user_id: user.id,
+            email: user.email,
+            profile,
+            selected_canteen: selectedCanteen,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        );
+        if (error) throw error;
+
+        if (!alive) return;
+        lastPushedProfileSigRef.current = sig;
+      } catch (e) {
+        console.warn('[user_profiles] upsert failed', (e as any)?.message || e);
+      }
+    }, 700);
+
+    return () => {
+      alive = false;
+      if (remoteProfileTimerRef.current) {
+        window.clearTimeout(remoteProfileTimerRef.current);
+        remoteProfileTimerRef.current = null;
+      }
+    };
+  }, [profile, authedEmail, selectedCanteen, supabase]);
+
+  // 登录用户：当日摄入 / 饮水 / 事件 → Supabase user_daily_log
+  useEffect(() => {
+    if (!supabase || !authedEmail) return;
+    let alive = true;
+    const timer = window.setTimeout(async () => {
+      try {
+        const events = LocalDB.getEvents(todayKey);
+        let sig = '';
+        try {
+          sig = JSON.stringify({ intake: dailyIntake, water_ml: waterIntake, events });
+        } catch {
+          return;
+        }
+        if (sig === lastDailyCloudSigRef.current) return;
+
+        const { data: sess } = await supabase.auth.getSession();
+        const user = sess.session?.user;
+        if (!user || !alive) return;
+
+        const { error } = await supabase.from('user_daily_log').upsert(
+          {
+            user_id: user.id,
+            date_key: todayKey,
+            intake: dailyIntake,
+            water_ml: Math.max(0, Math.round(Number(waterIntake) || 0)),
+            events,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,date_key' }
+        );
+        if (error) {
+          console.warn('[user_daily_log] upsert failed', error.message);
+          return;
+        }
+        if (alive) lastDailyCloudSigRef.current = sig;
+      } catch (e) {
+        console.warn('[user_daily_log] upsert failed', (e as any)?.message || e);
+      }
+    }, 700);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [dailyIntake, waterIntake, todayKey, authedEmail, supabase, dailyLogEventsTick]);
+
+  // 登录用户：健康报告 → Supabase user_health_report
+  useEffect(() => {
+    if (!supabase || !authedEmail || !healthReport) return;
+    let alive = true;
+    const timer = window.setTimeout(async () => {
+      try {
+        let sig = '';
+        try {
+          sig = JSON.stringify(healthReport);
+        } catch {
+          return;
+        }
+        if (sig === lastHealthCloudSigRef.current) return;
+
+        const { data: sess } = await supabase.auth.getSession();
+        const user = sess.session?.user;
+        if (!user || !alive) return;
+
+        const { error } = await supabase.from('user_health_report').upsert(
+          {
+            user_id: user.id,
+            report: healthReport,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        );
+        if (error) {
+          console.warn('[user_health_report] upsert failed', error.message);
+          return;
+        }
+        if (alive) lastHealthCloudSigRef.current = sig;
+      } catch (e) {
+        console.warn('[user_health_report] upsert failed', (e as any)?.message || e);
+      }
+    }, 700);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [healthReport, authedEmail, supabase]);
 
   const goalInfo = useMemo(() => {
     const w = Number(profile.weight) || 60;
@@ -787,7 +1120,7 @@ const App = () => {
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setLoading(true);
+    setScanLoading(true);
     try {
       // 拍照图片通常很大，先压缩再上传，减少后端 body 限制触顶和 AI 端超时概率
       const dataUrl = await readFileAsDataUrl(file);
@@ -803,7 +1136,7 @@ const App = () => {
       const mimeType = payload?.mimeType || file.type || 'image/jpeg';
       if (!base64Data) {
         showToast("图片读取失败，请重试", "error");
-        setLoading(false);
+        setScanLoading(false);
         return;
       }
       const result = await aiScan(base64Data, mimeType);
@@ -815,7 +1148,7 @@ const App = () => {
     } catch (err) {
       showToast("识别失败，请重试", "error");
     } finally {
-      setLoading(false);
+      setScanLoading(false);
     }
   };
 
@@ -870,6 +1203,35 @@ const App = () => {
     return { breakfast, lunch, dinner };
   };
 
+  // 登录后恢复云端保存的「方案」三餐（与「保存到今日」写入的 user_saved_meal_plan 对应）
+  useEffect(() => {
+    if (!supabase || !authedEmail) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user?.id;
+      if (!uid || cancelled) return;
+      const { data, error } = await supabase
+        .from('user_saved_meal_plan')
+        .select('plan,selected_canteen')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (cancelled || error) {
+        if (error) console.warn('[user_saved_meal_plan] pull failed', error.message);
+        return;
+      }
+      if (!data?.plan || typeof data.plan !== 'object') return;
+      const normalized = normalizePlannedMeals(data.plan);
+      if (!normalized || cancelled) return;
+      setPlannedMeals(normalized);
+      const c = data.selected_canteen;
+      if (c === 'none' || c === 'szu_south') setSelectedCanteen(c);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authedEmail, supabase]);
+
   const savePlannedMealsToToday = () => {
     if (!plannedMeals) return;
     const base = Date.now();
@@ -894,16 +1256,32 @@ const App = () => {
           dinner: plannedMeals.dinner?.name,
         },
       };
-      LocalDB.pushEvent(todayKey, ev);
+      pushDayEvent(ev);
     } catch {
       // ignore
     }
     showToast("已保存到今日摄入");
     setActiveTab('home');
+    void (async () => {
+      if (!supabase) return;
+      const { data: sess } = await supabase.auth.getSession();
+      const user = sess.session?.user;
+      if (!user) return;
+      const { error } = await supabase.from('user_saved_meal_plan').upsert(
+        {
+          user_id: user.id,
+          plan: plannedMeals,
+          selected_canteen: selectedCanteen,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      );
+      if (error) console.warn('[user_saved_meal_plan] upsert failed', error.message);
+    })();
   };
 
   const generatePlan = async (opts?: { refresh?: boolean }) => {
-    setLoading(true);
+    setPlanLoading(true);
     try {
       const prevPlan = plannedMeals
         ? {
@@ -964,7 +1342,7 @@ const App = () => {
             dinner: normalized.dinner?.name,
           },
         };
-        LocalDB.pushEvent(todayKey, ev);
+        pushDayEvent(ev);
       } catch {
         // ignore
       }
@@ -973,7 +1351,7 @@ const App = () => {
       const msg = (e as any)?.message || "生成失败，请稍后";
       showToast(msg, "error");
     } finally {
-      setLoading(false);
+      setPlanLoading(false);
     }
   };
 
@@ -983,7 +1361,7 @@ const App = () => {
     const newMsgs = [...chatMessages, { role: 'user', text: msg }];
     setChatMessages(newMsgs);
     setUserInput('');
-    setLoading(true);
+    setChatLoading(true);
     try {
       const systemInstruction = `你是一位专业的AI营养专家。
             当前用户详细数据：
@@ -996,12 +1374,12 @@ const App = () => {
             回复要简练、专业且富有逻辑，多用 Emoji。使用 Markdown 格式。
             如果是关于饮食建议，必须给出具体的可量化指导。
             注意：你的回复仅供参考，不作为医疗诊断。`;
-      const { text } = await aiChat(msg, systemInstruction);
+      const { text } = await aiChat(msg, systemInstruction, profile);
       setChatMessages([...newMsgs, { role: 'model', text }]);
     } catch (err) {
       showToast("网络连接稍显拥挤", "error");
     } finally {
-      setLoading(false);
+      setChatLoading(false);
     }
   };
 
@@ -1466,7 +1844,7 @@ const App = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={savePlannedMealsToToday}
-                    disabled={loading}
+                    disabled={planLoading}
                     className="py-3 rounded-2xl bg-[#07c160] text-white font-bold text-sm shadow-md active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
                   >
                     <CheckCircle2 className="w-5 h-5" />
@@ -1488,20 +1866,20 @@ const App = () => {
                               }
                             : null,
                         };
-                        LocalDB.pushEvent(todayKey, ev);
+                        pushDayEvent(ev);
                       } catch {
                         // ignore
                       }
                       void generatePlan({ refresh: true });
                     }}
-                    disabled={loading}
+                    disabled={planLoading}
                     className={cn(
                       "py-3 rounded-2xl bg-white border font-bold text-sm shadow-sm active:scale-[0.98] transition-transform flex items-center justify-center gap-2",
-                      loading ? "border-gray-100 text-gray-300" : "border-gray-200 text-gray-800"
+                      planLoading ? "border-gray-100 text-gray-300" : "border-gray-200 text-gray-800"
                     )}
                   >
-                    <RefreshCw className={cn("w-5 h-5", loading ? "animate-spin" : "")} />
-                    {loading ? "生成中（预计 5-10 秒）" : "换一批推荐"}
+                    <RefreshCw className={cn("w-5 h-5", planLoading ? "animate-spin" : "")} />
+                    {planLoading ? "生成中（预计 5-10 秒）" : "换一批推荐"}
                   </button>
                 </div>
                 {(['breakfast', 'lunch', 'dinner'] as const).map(type => {
@@ -1564,14 +1942,14 @@ const App = () => {
                    <p className="text-xs text-gray-400 text-center mb-8">我们将结合你的 BMI 和活动强度<br/>精准计算全天能量分布</p>
                    <button
                      onClick={() => generatePlan()}
-                     disabled={loading}
+                     disabled={planLoading}
                      className={cn(
                        "px-10 py-3.5 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2",
-                       loading ? "bg-gray-200 text-gray-400 shadow-none" : "bg-[#07c160] text-white"
+                       planLoading ? "bg-gray-200 text-gray-400 shadow-none" : "bg-[#07c160] text-white"
                      )}
                    >
-                     {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
-                     {loading ? "生成中（预计 5-10 秒）" : "立即生成方案"}
+                     {planLoading && <RefreshCw className="w-4 h-4 animate-spin" />}
+                     {planLoading ? "生成中（预计 5-10 秒）" : "立即生成方案"}
                    </button>
                 </div>
               </div>
@@ -1630,7 +2008,7 @@ const App = () => {
               </div>
             ) : (
               <div className="w-64 h-64 bg-white rounded-[3rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-300 group hover:border-green-500 transition-colors relative overflow-hidden shadow-sm">
-                {loading ? (
+                {scanLoading ? (
                   <div className="flex flex-col items-center gap-4">
                     <div className="animate-spin w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full"></div>
                     <p className="text-[10px] font-bold text-green-600">AI正在识别中（预计 5-15 秒）</p>
@@ -1693,10 +2071,10 @@ const App = () => {
                               <button
                                 key={s.label}
                                 onClick={() => handleSendMessage(s.text)}
-                                disabled={loading}
+                                disabled={chatLoading}
                                 className={cn(
                                   "px-3 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-95",
-                                  loading ? "bg-gray-50 text-gray-300 border-gray-100" : "bg-gray-50 text-gray-600 border-gray-100 hover:bg-gray-100"
+                                  chatLoading ? "bg-gray-50 text-gray-300 border-gray-100" : "bg-gray-50 text-gray-600 border-gray-100 hover:bg-gray-100"
                                 )}
                               >
                                 {s.label}
@@ -1708,7 +2086,7 @@ const App = () => {
                     </div>
                   </div>
                 ))}
-                {loading && (
+                {chatLoading && (
                   <div className="flex items-center gap-2 text-[10px] text-gray-300 pl-2">
                     <div className="flex gap-1">
                       <motion.div animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1 h-1 bg-gray-300 rounded-full" />
@@ -1730,7 +2108,7 @@ const App = () => {
                 />
                 <button 
                   onClick={() => handleSendMessage()} 
-                  disabled={!userInput.trim() || loading}
+                  disabled={!userInput.trim() || chatLoading}
                   className={cn("p-2.5 rounded-xl transition-all", userInput.trim() ? 'bg-green-600 text-white' : 'bg-gray-50 text-gray-300')}
                 >
                   <ArrowUp className="w-5 h-5" />
@@ -1749,7 +2127,49 @@ const App = () => {
              <div className="flex flex-col items-center mb-10">
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-3xl mb-4 border-4 border-white shadow-md">👤</div>
                 <h3 className="font-bold">健康档案</h3>
-                <p className="text-[10px] text-gray-400">数据已加密存储于本地</p>
+                <p className="text-[10px] text-gray-400">{authedEmail ? `已登录：${authedEmail}` : '未登录（当前仅本地存储）'}</p>
+             </div>
+
+             <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-50 mb-6">
+               <div className="flex items-center justify-between mb-3">
+                 <SectionTitle title="邮箱登录" subtitle="SIGN IN" />
+                 {authedEmail ? (
+                   <button
+                     onClick={logout}
+                     className="px-4 py-2 rounded-2xl text-xs font-bold border border-gray-100 bg-gray-50 text-gray-600 active:scale-95 transition-transform"
+                   >
+                     退出
+                   </button>
+                 ) : null}
+               </div>
+               {authedEmail ? (
+                 <div className="text-xs text-gray-500 leading-relaxed">
+                   登录后可以把身高体重、目标等档案同步到云端，并用于 AI 推荐。
+                 </div>
+               ) : (
+                 <div className="space-y-3">
+                   <input
+                     value={authEmail}
+                     onChange={(e) => setAuthEmail(e.target.value)}
+                     placeholder="输入邮箱，如 name@example.com"
+                     className="w-full bg-gray-50 p-3 rounded-2xl font-bold focus:ring-2 focus:ring-green-500 outline-none transition-all"
+                     inputMode="email"
+                   />
+                   <button
+                     onClick={sendLoginLink}
+                     disabled={!authEmail.trim() || authSending}
+                     className={cn(
+                       "w-full py-3.5 rounded-2xl font-bold text-sm shadow-md active:scale-[0.98] transition-transform",
+                       !authEmail.trim() || authSending ? "bg-gray-200 text-gray-400 shadow-none" : "bg-[#07c160] text-white"
+                     )}
+                   >
+                     {authSending ? '发送中…' : '发送登录链接（免密码）'}
+                   </button>
+                   <p className="text-[10px] text-gray-400 leading-relaxed">
+                     说明：会发送一封登录邮件，点击后自动回到当前网站完成登录（需在 Supabase 控制台配置允许的站点 URL）。
+                   </p>
+                 </div>
+               )}
              </div>
 
              <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-50 mb-6">
@@ -1893,7 +2313,7 @@ const App = () => {
                   </button>
                 </div>
              </div>
-             <p className="text-center text-[9px] text-gray-300 mt-8">版本 2.1.0 · Recipe 团队</p>
+             <p className="text-center text-[9px] text-gray-300 mt-8">版本 2.2.0 · 含邮箱登录与云端同步 · Recipe</p>
           </motion.div>
         );
       default:
@@ -1908,9 +2328,19 @@ const App = () => {
       </AnimatePresence>
       
       {/* 微信风格顶栏 (Capsule Header) */}
-      <div className="fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-md flex items-center px-4 z-[100] border-b border-gray-100 max-w-[500px] mx-auto">
-         <div className="flex-1">
-            <h1 className="text-base font-bold text-gray-900">Recipe</h1>
+      {/* z-index 须高于引导层 z-[500]，否则新用户全屏引导会挡住「登录」与标题 */}
+      <div className="fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-md flex items-center px-4 z-[520] border-b border-gray-100 max-w-[500px] mx-auto">
+         <div className="flex-1 flex items-center gap-3 min-w-0">
+            <h1 className="text-base font-bold text-gray-900 shrink-0">Recipe</h1>
+            {!authedEmail && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                className="text-xs font-bold text-[#07c160] px-2 py-1 rounded-lg bg-green-50 border border-green-100 active:scale-95 transition-transform shrink-0"
+              >
+                登录
+              </button>
+            )}
          </div>
          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 space-x-3">
             <MoreHorizontal className="w-4 h-4 text-gray-800" />
@@ -1932,7 +2362,7 @@ const App = () => {
       </div>
 
       {/* 底部导航栏 */}
-      <nav className="fixed bottom-0 inset-x-0 mx-auto w-full max-w-[500px] bg-white/95 backdrop-blur-md border-t border-gray-100 grid grid-cols-5 items-center pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] z-[100] shadow-[0_-1px_10px_rgba(0,0,0,0.02)]">
+      <nav className="fixed bottom-0 inset-x-0 mx-auto w-full max-w-[500px] bg-white/95 backdrop-blur-md border-t border-gray-100 grid grid-cols-5 items-center pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] z-[520] shadow-[0_-1px_10px_rgba(0,0,0,0.02)]">
         <TabItem active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Home className="w-6 h-6" />} label="数据" />
         <TabItem active={activeTab === 'recipes'} onClick={() => setActiveTab('recipes')} icon={<ClipboardList className="w-6 h-6" />} label="方案" />
         <div className="relative flex flex-col items-center justify-start">

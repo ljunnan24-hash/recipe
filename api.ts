@@ -15,6 +15,13 @@ export const API_BASE = (() => {
   return '/api';
 })();
 
+/** 登录后由前端设置：用于后端按 JWT 读取 Supabase user_profiles */
+let supabaseAccessToken: string | null = null;
+
+export function setSupabaseAccessToken(token: string | null) {
+  supabaseAccessToken = token;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit & { json?: unknown } = {}
@@ -22,7 +29,11 @@ async function request<T>(
   const { json, headers, ...rest } = options;
   const res = await fetch(`${API_BASE}${path}`, {
     ...rest,
-    headers: { 'Content-Type': 'application/json', ...(headers || {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(supabaseAccessToken ? { Authorization: `Bearer ${supabaseAccessToken}` } : {}),
+      ...(headers || {}),
+    },
     body: json !== undefined ? JSON.stringify(json) : rest.body,
   });
   if (!res.ok) {
@@ -92,10 +103,14 @@ export async function getCanteenDishes(canteen: string = 'szu_south'): Promise<{
 }
 
 /** AI 对话（单轮） */
-export async function aiChat(message: string, systemInstruction: string): Promise<{ text: string }> {
+export async function aiChat(
+  message: string,
+  systemInstruction: string,
+  profile?: unknown
+): Promise<{ text: string }> {
   return request<{ text: string }>('/ai/chat', {
     method: 'POST',
-    json: { message, systemInstruction },
+    json: { message, systemInstruction, profile },
   });
 }
 
