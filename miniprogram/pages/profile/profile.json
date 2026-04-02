@@ -1,4 +1,6 @@
 {
-  "navigationBarTitleText": "档案",
-  "usingComponents": {}
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "app-header": "/components/AppHeader/AppHeader"
+  }
 }

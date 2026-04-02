@@ -1,10 +1,31 @@
-<view class="page">
+<app-header title="AI专家" />
+<view class="container pagePad safe-area-pb">
   <view class="card">
-    <text class="title">营养咨询</text>
-    <text class="muted block">迁移 H5 对话 UI；接口：aiChat(message, systemInstruction)。</text>
-    <input class="input" placeholder="输入你的问题" value="{{msg}}" bindinput="onInput" />
-    <button class="btn-primary full" bindtap="onSend" loading="{{loading}}">发送</button>
+    <view style="display:flex; align-items:center; justify-content:space-between;">
+      <text class="title">AI 专家</text>
+      <text class="sectionTag">COACH</text>
+    </view>
+    <text class="muted">像网页版一样：简洁实用、可直接问饮食/训练/配餐。</text>
+
+    <view class="divider"></view>
+
+    <view class="bubble bubbleModel">
+      <text class="bubbleText">你好！我是你的 AI 营养专家。你可以问我“今天怎么吃”“晚餐怎么搭配”“训练后怎么补蛋白”等。</text>
+    </view>
+
+    <view class="bubble bubbleUser" wx:if="{{lastUser}}">
+      <text class="bubbleText">{{lastUser}}</text>
+    </view>
+
+    <view class="bubble bubbleModel" wx:if="{{reply}}">
+      <text class="bubbleText">{{reply}}</text>
+    </view>
+
     <text class="err" wx:if="{{err}}">{{err}}</text>
-    <view wx:if="{{reply}}" class="reply">{{reply}}</view>
+  </view>
+
+  <view class="card inputBar">
+    <input class="input" placeholder="输入你的问题…" value="{{msg}}" bindinput="onInput" />
+    <button class="btn-primary sendBtn" bindtap="onSend" loading="{{loading}}">发送</button>
   </view>
 </view>

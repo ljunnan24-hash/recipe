@@ -1,0 +1,34 @@
+<view class="tabWrap safe">
+  <view class="tabBg"></view>
+
+  <view class="tabRow">
+    <view class="tabItem" data-idx="0" bindtap="onSwitch">
+      <view class="ico {{selected===0 ? 'icoOn' : ''}}">数</view>
+      <text class="tabLabel {{selected===0 ? 'on' : ''}}">数据</text>
+    </view>
+
+    <view class="tabItem" data-idx="1" bindtap="onSwitch">
+      <view class="ico {{selected===1 ? 'icoOn' : ''}}">案</view>
+      <text class="tabLabel {{selected===1 ? 'on' : ''}}">方案</text>
+    </view>
+
+    <view class="tabCenter">
+      <view class="centerHalo"></view>
+      <view class="centerBtn" data-idx="2" bindtap="onSwitch">
+        <text class="centerIcon">扫</text>
+      </view>
+      <text class="tabLabel centerLabel {{selected===2 ? 'on' : ''}}">扫码</text>
+    </view>
+
+    <view class="tabItem" data-idx="3" bindtap="onSwitch">
+      <view class="ico {{selected===3 ? 'icoOn' : ''}}">AI</view>
+      <text class="tabLabel {{selected===3 ? 'on' : ''}}">AI专家</text>
+    </view>
+
+    <view class="tabItem" data-idx="4" bindtap="onSwitch">
+      <view class="ico {{selected===4 ? 'icoOn' : ''}}">档</view>
+      <text class="tabLabel {{selected===4 ? 'on' : ''}}">档案</text>
+    </view>
+  </view>
+</view>
+

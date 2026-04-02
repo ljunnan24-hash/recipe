@@ -1,10 +1,64 @@
-<view class="page">
+<app-header title="数据" />
+<view class="container pagePad safe-area-pb">
   <view class="card">
-    <text class="title">今日摄入</text>
-    <text class="muted block">此处迁移 H5「数据」页：环形进度、进食列表、饮水等。</text>
-    <text class="muted block mt">本地键与 H5 一致：{{intakeKey}}</text>
+    <view style="display:flex; align-items:center; justify-content:space-between;">
+      <text class="title">今日摄入</text>
+      <text class="sectionTag">{{dateKey}}</text>
+    </view>
+    <text class="muted">总热量与三大营养素（对齐网页版卡片风格）</text>
+
+    <view class="divider"></view>
+
+    <view style="display:flex; gap:16rpx; flex-wrap:wrap;">
+      <view style="flex:1; min-width:300rpx; background:#f3f4f6; border-radius:24rpx; padding:22rpx;">
+        <text class="mutedTiny">热量 kcal</text>
+        <text style="display:block; font-size:42rpx; font-weight:900; margin-top:8rpx;">{{totals.calories}}</text>
+      </view>
+      <view style="flex:1; min-width:300rpx; background:#f3f4f6; border-radius:24rpx; padding:22rpx;">
+        <text class="mutedTiny">饮水 ml</text>
+        <text style="display:block; font-size:42rpx; font-weight:900; margin-top:8rpx;">{{waterMl}}</text>
+      </view>
+    </view>
+
+    <view style="display:flex; gap:12rpx; margin-top:16rpx;">
+      <view style="flex:1; background:#f9fafb; border-radius:24rpx; padding:18rpx; border:1rpx solid #f3f4f6;">
+        <text class="mutedTiny">蛋白 g</text>
+        <text style="display:block; font-weight:900; font-size:30rpx; margin-top:6rpx;">{{totals.protein}}</text>
+      </view>
+      <view style="flex:1; background:#f9fafb; border-radius:24rpx; padding:18rpx; border:1rpx solid #f3f4f6;">
+        <text class="mutedTiny">碳水 g</text>
+        <text style="display:block; font-weight:900; font-size:30rpx; margin-top:6rpx;">{{totals.carbs}}</text>
+      </view>
+      <view style="flex:1; background:#f9fafb; border-radius:24rpx; padding:18rpx; border:1rpx solid #f3f4f6;">
+        <text class="mutedTiny">脂肪 g</text>
+        <text style="display:block; font-weight:900; font-size:30rpx; margin-top:6rpx;">{{totals.fat}}</text>
+      </view>
+    </view>
   </view>
+
   <view class="card">
-    <text class="hint">开发提示：用 utils/storage.js 读写 wx_intake_、wx_water_ 与 wx_user_profile。</text>
+    <view style="display:flex; align-items:center; justify-content:space-between;">
+      <text class="title">进食明细</text>
+      <text class="mutedTiny">{{items.length}} 条</text>
+    </view>
+    <text class="muted">与网页版一致：按餐次记录，后续可加删除/编辑。</text>
+
+    <view class="divider"></view>
+
+    <view wx:if="{{!items || items.length === 0}}">
+      <text class="muted">今天还没有记录。去「扫码」识别或在「方案」一键记入。</text>
+    </view>
+
+    <view wx:for="{{items}}" wx:key="timestamp" style="padding:18rpx 0; border-bottom:1rpx solid #f3f4f6;">
+      <view style="display:flex; justify-content:space-between; gap:16rpx;">
+        <view style="flex:1;">
+          <text style="display:block; font-weight:900; font-size:28rpx; line-height:1.2;">{{item.name}}</text>
+          <text class="mutedTiny">餐次：{{item.mealType}} · {{item.protein}}P/{{item.carbs}}C/{{item.fat}}F</text>
+        </view>
+        <text style="font-weight:900; color:#111827;">{{item.calories}} kcal</text>
+      </view>
+    </view>
   </view>
+
+  <text class="mutedTiny" style="text-align:center; padding:12rpx 0;">本地键：{{intakeKey}}</text>
 </view>

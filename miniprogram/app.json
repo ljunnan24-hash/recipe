@@ -1,10 +1,6 @@
 {
   "pages": [
-    "pages/home/home",
-    "pages/plan/plan",
-    "pages/scan/scan",
-    "pages/coach/coach",
-    "pages/profile/profile"
+    "pages/web/web"
   ],
   "window": {
     "navigationBarTitleText": "Recipe",
@@ -13,50 +9,11 @@
     "backgroundTextStyle": "light",
     "backgroundColor": "#f3f4f6"
   },
-  "tabBar": {
-    "color": "#6b7280",
-    "selectedColor": "#07c160",
-    "backgroundColor": "#ffffff",
-    "borderStyle": "black",
-    "list": [
-      {
-        "pagePath": "pages/home/home",
-        "text": "数据",
-        "iconPath": "assets/tab/home.png",
-        "selectedIconPath": "assets/tab/home-active.png"
-      },
-      {
-        "pagePath": "pages/plan/plan",
-        "text": "方案",
-        "iconPath": "assets/tab/plan.png",
-        "selectedIconPath": "assets/tab/plan-active.png"
-      },
-      {
-        "pagePath": "pages/scan/scan",
-        "text": "扫码",
-        "iconPath": "assets/tab/scan.png",
-        "selectedIconPath": "assets/tab/scan-active.png"
-      },
-      {
-        "pagePath": "pages/coach/coach",
-        "text": "AI专家",
-        "iconPath": "assets/tab/coach.png",
-        "selectedIconPath": "assets/tab/coach-active.png"
-      },
-      {
-        "pagePath": "pages/profile/profile",
-        "text": "档案",
-        "iconPath": "assets/tab/profile.png",
-        "selectedIconPath": "assets/tab/profile-active.png"
-      }
-    ]
-  },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
-  "lazyCodeLoading": "requiredComponents",
-  "permission": {
-    "scope.camera": {
-      "desc": "用于拍摄食物照片，识别营养成分"
-    }
+  "networkTimeout": {
+    "request": 120000,
+    "uploadFile": 300000,
+    "downloadFile": 120000
   }
 }

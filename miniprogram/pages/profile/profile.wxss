@@ -1,27 +1,43 @@
-.page {
-  padding-bottom: 32rpx;
-}
-
-.title {
-  font-size: 34rpx;
-  font-weight: 600;
-  display: block;
-  margin-bottom: 16rpx;
-}
-
-.block {
-  display: block;
-  line-height: 1.6;
-  margin-bottom: 24rpx;
-}
-
 .preview {
   display: block;
   font-size: 22rpx;
   word-break: break-all;
-  margin-bottom: 24rpx;
+  margin-top: 16rpx;
 }
 
 .full {
   width: 100%;
+}
+
+.goalGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+.goalBtn {
+  width: 100%;
+  box-sizing: border-box;
+  background: #f3f4f6;
+  border-radius: 24rpx;
+  height: 92rpx;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 900;
+  color: #6b7280;
+  border: none;
+}
+
+.goalBtn::after {
+  border: none;
+}
+
+.goalOn {
+  background: #07c160;
+  color: #fff;
+  box-shadow: 0 10rpx 30rpx rgba(7, 193, 96, 0.28);
 }

@@ -1,0 +1,13 @@
+<view class="hdr {{floating ? 'floating' : ''}}" style="padding-top: {{statusBarHeight}}px;">
+  <view class="hdrInner">
+    <view class="left">
+      <text class="title">{{title}}</text>
+    </view>
+    <view class="capsule">
+      <view class="dot"></view>
+      <view class="sep"></view>
+      <view class="circle"></view>
+    </view>
+  </view>
+</view>
+

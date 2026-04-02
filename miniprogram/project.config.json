@@ -21,7 +21,7 @@
     "checkInvalidKey": true,
     "checkSiteMap": true,
     "uploadWithSourceMap": true,
-    "compileHotReLoad": true,
+    "compileHotReLoad": false,
     "lazyloadPlaceholderEnable": false,
     "useMultiFrameRuntime": true,
     "useApiHook": true,
@@ -48,11 +48,12 @@
   },
   "compileType": "miniprogram",
   "libVersion": "3.5.5",
-  "appid": "填写你的小程序AppID",
+  "appid": "wx2e4c0def5720805e",
   "projectname": "recipe-native",
   "condition": {},
   "editorSetting": {
     "tabIndent": "insertSpaces",
     "tabSize": 2
-  }
+  },
+  "simulatorPluginLibVersion": {}
 }

@@ -8,7 +8,7 @@
  *
  * 开发工具里可勾选「不校验合法域名」先联调；真机/体验版必须公网 HTTPS + 已备案域名（按微信规则）。
  */
-const API_BASE = 'https://请替换为你的备案域名/api'
+const API_BASE = 'https://ainutritist.site/api'
 
 module.exports = {
   API_BASE

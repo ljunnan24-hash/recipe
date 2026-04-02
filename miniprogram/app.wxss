@@ -1,9 +1,19 @@
-/** 全局样式：与 H5 的微信绿主色一致 */
+/** 全局样式：对齐 H5 视觉（微信绿 + 灰底 + 大圆角卡片） */
 page {
-  background-color: #f3f4f6;
+  background-color: #f7f7f7;
   font-size: 28rpx;
   color: #111827;
   box-sizing: border-box;
+}
+
+.container {
+  padding: 0 32rpx;
+}
+
+.pagePad {
+  /* 顶部自绘 Header 预留空间：约 120rpx + 状态栏（状态栏由组件 padding-top 处理） */
+  padding-top: 156rpx;
+  padding-bottom: 32rpx;
 }
 
 .safe-area-pb {
@@ -12,18 +22,20 @@ page {
 
 .card {
   background: #fff;
-  border-radius: 24rpx;
-  padding: 32rpx;
-  margin: 24rpx;
-  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);
+  border-radius: 32rpx;
+  padding: 36rpx;
+  margin: 0 0 24rpx 0;
+  box-shadow: 0 6rpx 30rpx rgba(0, 0, 0, 0.06);
+  border: 1rpx solid #f3f4f6;
 }
 
 .btn-primary {
   background: #07c160;
   color: #fff;
-  border-radius: 16rpx;
-  padding: 24rpx 48rpx;
-  font-size: 30rpx;
+  border-radius: 24rpx;
+  padding: 26rpx 48rpx;
+  font-size: 28rpx;
+  font-weight: 700;
   border: none;
 }
 
@@ -31,7 +43,59 @@ page {
   border: none;
 }
 
+.btn-ghost {
+  background: #f3f4f6;
+  color: #111827;
+  border-radius: 24rpx;
+  padding: 26rpx 48rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  border: none;
+}
+
+.btn-ghost::after {
+  border: none;
+}
+
+.input {
+  background: #f3f4f6;
+  border-radius: 24rpx;
+  padding: 24rpx 26rpx;
+  font-weight: 700;
+  font-size: 28rpx;
+  border: 2rpx solid transparent;
+}
+
+.mutedTiny {
+  color: #9ca3af;
+  font-size: 22rpx;
+}
+
 .muted {
   color: #6b7280;
   font-size: 24rpx;
+}
+
+.title {
+  font-size: 34rpx;
+  font-weight: 800;
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.sectionTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(7, 193, 96, 0.12);
+  color: #07c160;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.divider {
+  height: 1rpx;
+  background: #f3f4f6;
+  margin: 20rpx 0;
 }

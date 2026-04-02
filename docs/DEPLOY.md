@@ -45,9 +45,63 @@ VITE_API_BASE=https://api.example.com/api
 
 ---
 
-## Nginx 示例（同域：静态 + `/api` → Node）
+## Nginx 配置（建议分两步）
 
-将 `your-domain.com` 换成你的备案域名；证书路径按 certbot 或腾讯云实际路径修改。
+### 第一步：只用 HTTP + 公网 IP（先跑通）
+
+适合：**还没有 HTTPS 证书**、或先用 **IP 访问** 验证。小程序正式环境需要 HTTPS，此步仅用于服务器自检。
+
+1. 安装：`sudo apt install -y nginx`
+2. 新建站点：`sudo nano /etc/nginx/sites-available/recipe`
+3. 粘贴下面整段（`root` 需指向你已 `npm run build` 的 `dist`）：
+
+```nginx
+server {
+    listen 80;
+    server_name _;
+
+    root /home/ubuntu/recipe/dist;
+    index index.html;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:4301;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 25m;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+4. 启用并关掉默认站点（避免抢 80 端口）：
+
+```bash
+sudo ln -sf /etc/nginx/sites-available/recipe /etc/nginx/sites-enabled/recipe
+sudo rm -f /etc/nginx/sites-enabled/default
+```
+
+5. 检查并重载：
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+6. 浏览器访问 `http://公网IP`；自检：`curl -s http://公网IP/api/health`
+
+---
+
+### 第二步：有备案域名 + HTTPS（小程序 / 正式对外）
+
+域名解析到本机、证书就绪后，将 `server_name` 换成域名，并配置 `listen 443 ssl` 与证书路径（Certbot 或腾讯云证书）。
+
+将 `your-domain.com` 换成你的备案域名；证书路径按实际修改。
 
 ```nginx
 server {

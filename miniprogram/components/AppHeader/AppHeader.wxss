@@ -1,0 +1,62 @@
+.hdr {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 800;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(18rpx);
+  border-bottom: 1rpx solid #f3f4f6;
+}
+
+.hdr.floating {
+  border-bottom: none;
+}
+
+.hdrInner {
+  height: 120rpx;
+  display: flex;
+  align-items: center;
+  padding: 0 32rpx;
+}
+
+.left {
+  flex: 1;
+}
+
+.title {
+  font-size: 32rpx;
+  font-weight: 900;
+  color: #111827;
+}
+
+.capsule {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 999rpx;
+  background: #f3f4f6;
+  border: 1rpx solid #e5e7eb;
+}
+
+.dot {
+  width: 26rpx;
+  height: 26rpx;
+  border-radius: 999rpx;
+  background: #111827;
+}
+
+.sep {
+  width: 2rpx;
+  height: 24rpx;
+  background: #d1d5db;
+}
+
+.circle {
+  width: 26rpx;
+  height: 26rpx;
+  border-radius: 999rpx;
+  border: 4rpx solid #111827;
+}
+

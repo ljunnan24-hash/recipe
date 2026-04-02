@@ -1,8 +1,45 @@
-<view class="page">
+<app-header title="档案" />
+<view class="container pagePad safe-area-pb">
   <view class="card">
-    <text class="title">用户档案</text>
-    <text class="muted block">迁移 H5「档案 + 引导问卷」：写入 wx_user_profile（JSON）。</text>
-    <text class="preview muted" wx:if="{{preview}}">{{preview}}</text>
-    <button class="btn-primary full" bindtap="onClear">清空本地数据（同 H5）</button>
+    <view style="display:flex; align-items:center; justify-content:space-between;">
+      <text class="title">档案</text>
+      <text class="sectionTag">PROFILE</text>
+    </view>
+    <text class="muted">对齐网页版：基础信息 + 目标选择。</text>
+
+    <view class="divider"></view>
+
+    <view style="display:flex; gap:16rpx;">
+      <view style="flex:1;">
+        <text class="mutedTiny">当前体重 (kg)</text>
+        <input class="input" type="number" placeholder="例如 60" value="{{weight}}" bindinput="onWeight" />
+      </view>
+      <view style="flex:1;">
+        <text class="mutedTiny">身高 (cm)</text>
+        <input class="input" type="number" placeholder="例如 170" value="{{height}}" bindinput="onHeight" />
+      </view>
+    </view>
+
+    <view style="margin-top:18rpx;">
+      <text class="mutedTiny">目标</text>
+      <view class="goalGrid">
+        <button class="goalBtn {{goal==='lose'?'goalOn':''}}" data-goal="lose" bindtap="onGoalTap">减脂</button>
+        <button class="goalBtn {{goal==='gain'?'goalOn':''}}" data-goal="gain" bindtap="onGoalTap">增肌</button>
+        <button class="goalBtn {{goal==='shape'?'goalOn':''}}" data-goal="shape" bindtap="onGoalTap">塑形</button>
+        <button class="goalBtn {{goal==='maintain'?'goalOn':''}}" data-goal="maintain" bindtap="onGoalTap">维持</button>
+      </view>
+    </view>
+
+    <view style="display:flex; gap:16rpx; margin-top:18rpx;">
+      <button class="btn-primary full" bindtap="onSave">保存</button>
+      <button class="btn-ghost full" bindtap="onClear">清空</button>
+    </view>
+
+    <text class="preview mutedTiny" wx:if="{{preview}}">当前存储：{{preview}}</text>
+  </view>
+
+  <view class="card">
+    <text class="title">隐私与合规</text>
+    <text class="muted">拍照识别仅用于生成营养结果；请勿将建议视为医疗诊断。</text>
   </view>
 </view>

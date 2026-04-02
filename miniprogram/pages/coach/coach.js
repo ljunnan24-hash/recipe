@@ -6,7 +6,8 @@ Page({
     msg: '',
     loading: false,
     err: '',
-    reply: ''
+    reply: '',
+    lastUser: ''
   },
   onInput(e) {
     this.setData({ msg: e.detail.value })
@@ -21,7 +22,7 @@ Page({
     const systemInstruction =
       '你是营养与运动顾问，回答简洁实用。用户档案（JSON）：' +
       JSON.stringify(profile)
-    this.setData({ loading: true, err: '', reply: '' })
+    this.setData({ loading: true, err: '', reply: '', lastUser: message })
     try {
       const { text } = await aiChat(message, systemInstruction)
       this.setData({ reply: text || '', msg: '' })

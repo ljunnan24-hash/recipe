@@ -1,14 +1,38 @@
-<view class="page">
+<app-header title="扫码" />
+<view class="container pagePad safe-area-pb">
   <view class="card">
-    <text class="title">拍摄 / 相册</text>
-    <text class="muted block">使用 wx.chooseMedia 选图 → 读 base64 → 调用 /api/ai/scan（与 H5 一致）。</text>
+    <view style="display:flex; align-items:center; justify-content:space-between;">
+      <text class="title">拍照识别</text>
+      <text class="sectionTag">SCAN</text>
+    </view>
+    <text class="muted">选择图片后自动识别营养（对齐网页版卡片风格）。</text>
+
+    <view class="divider"></view>
+
     <button class="btn-primary full" bindtap="onPick" loading="{{loading}}">选择图片并识别</button>
     <text class="err" wx:if="{{err}}">{{err}}</text>
-    <view wx:if="{{scan}}" class="result">
-      <text class="row">名称：{{scan.name}}</text>
-      <text class="row">热量：{{scan.calories}} kcal</text>
-      <text class="row">蛋白：{{scan.protein}} g · 碳水：{{scan.carbs}} g · 脂肪：{{scan.fat}} g</text>
-      <text class="row muted" wx:if="{{scan.estimatedWeightGrams}}">估算可食部：{{scan.estimatedWeightGrams}} g</text>
+
+    <view wx:if="{{scan}}" class="resultCard">
+      <view style="display:flex; align-items:center; justify-content:space-between;">
+        <text style="font-weight:900; font-size:30rpx;">{{scan.name}}</text>
+        <text class="sectionTag">{{scan.calories}} kcal</text>
+      </view>
+      <text class="mutedTiny" wx:if="{{scan.estimatedWeightGrams}}">估算可食部：{{scan.estimatedWeightGrams}} g · {{scan.portionSize || ''}}</text>
+
+      <view style="display:flex; gap:12rpx; margin-top:16rpx;">
+        <view class="miniStat">
+          <text class="mutedTiny">蛋白</text>
+          <text class="miniStatVal">{{scan.protein}} g</text>
+        </view>
+        <view class="miniStat">
+          <text class="mutedTiny">碳水</text>
+          <text class="miniStatVal">{{scan.carbs}} g</text>
+        </view>
+        <view class="miniStat">
+          <text class="mutedTiny">脂肪</text>
+          <text class="miniStatVal">{{scan.fat}} g</text>
+        </view>
+      </view>
     </view>
   </view>
 </view>

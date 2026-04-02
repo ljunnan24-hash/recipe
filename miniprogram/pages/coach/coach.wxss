@@ -1,32 +1,3 @@
-.page {
-  padding-bottom: 32rpx;
-}
-
-.title {
-  font-size: 34rpx;
-  font-weight: 600;
-  display: block;
-  margin-bottom: 16rpx;
-}
-
-.block {
-  display: block;
-  line-height: 1.6;
-  margin-bottom: 24rpx;
-}
-
-.input {
-  border: 1rpx solid #e5e7eb;
-  border-radius: 12rpx;
-  padding: 20rpx;
-  margin-bottom: 20rpx;
-  background: #fff;
-}
-
-.full {
-  width: 100%;
-}
-
 .err {
   display: block;
   color: #dc2626;
@@ -34,11 +5,45 @@
   margin-top: 16rpx;
 }
 
-.reply {
-  margin-top: 24rpx;
+.inputBar {
+  margin-top: 0;
   padding: 24rpx;
-  background: #f9fafb;
-  border-radius: 16rpx;
-  font-size: 28rpx;
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+}
+
+.input {
+  flex: 1;
+}
+
+.sendBtn {
+  padding: 22rpx 28rpx;
+  border-radius: 24rpx;
+  font-size: 26rpx;
+}
+
+.bubble {
+  max-width: 92%;
+  padding: 22rpx 24rpx;
+  border-radius: 26rpx;
+  margin-top: 16rpx;
   white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.bubbleText {
+  font-size: 28rpx;
+}
+
+.bubbleModel {
+  background: #f3f4f6;
+  color: #111827;
+  align-self: flex-start;
+}
+
+.bubbleUser {
+  background: #07c160;
+  color: #fff;
+  margin-left: auto;
 }

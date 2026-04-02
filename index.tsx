@@ -1950,6 +1950,20 @@ const App = () => {
         <TabItem active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User className="w-6 h-6" />} label="档案" />
       </nav>
 
+      {/* 工信部备案号（审核要求：页面底部展示） */}
+      <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] inset-x-0 mx-auto max-w-[500px] z-[90] px-4 pb-2">
+        <div className="text-center text-[10px] text-gray-400">
+          <a
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-gray-500"
+          >
+            粤ICP备2026032930号-1
+          </a>
+        </div>
+      </div>
+
       {reportLoading && (
         <div className="fixed top-16 left-0 right-0 max-w-[500px] mx-auto z-[95] px-4">
           <div className="bg-white/95 backdrop-blur-md border border-gray-100 rounded-2xl px-4 py-2 shadow-sm flex items-center justify-between">

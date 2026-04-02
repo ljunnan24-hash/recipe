@@ -1,4 +1,6 @@
 {
-  "navigationBarTitleText": "AI 专家",
-  "usingComponents": {}
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "app-header": "/components/AppHeader/AppHeader"
+  }
 }

@@ -6,7 +6,7 @@ const { API_BASE } = require('./config.js')
  * @param {{ method?: string, json?: object }} options
  */
 function request(path, options = {}) {
-  const { method = 'GET', json } = options
+  const { method = 'GET', json, timeoutMs } = options
   const url = `${API_BASE.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`
 
   const header = {}
@@ -19,6 +19,8 @@ function request(path, options = {}) {
       url,
       method,
       header,
+      /** AI 识图/配餐/对话可能较慢，默认 60s，避免 errMsg 含 timeout */
+      timeout: timeoutMs != null ? timeoutMs : 120000,
       data: json !== undefined ? json : undefined,
       success(res) {
         const { statusCode, data } = res
