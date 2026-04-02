@@ -1935,34 +1935,30 @@ const App = () => {
       <nav className="fixed bottom-0 inset-x-0 mx-auto w-full max-w-[500px] bg-white/95 backdrop-blur-md border-t border-gray-100 grid grid-cols-5 items-center pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] z-[100] shadow-[0_-1px_10px_rgba(0,0,0,0.02)]">
         <TabItem active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Home className="w-6 h-6" />} label="数据" />
         <TabItem active={activeTab === 'recipes'} onClick={() => setActiveTab('recipes')} icon={<ClipboardList className="w-6 h-6" />} label="方案" />
-        <div className="flex justify-center relative -top-5">
-           <button 
-             className={cn(
-               "w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-all active:scale-90",
-               activeTab === 'scan' ? 'bg-green-700' : 'bg-[#07c160]'
-             )} 
-             onClick={() => setActiveTab('scan')}
-           >
+        <div className="relative flex flex-col items-center justify-start">
+          <div className="relative -top-5">
+            <button 
+              className={cn(
+                "w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-all active:scale-90",
+                activeTab === 'scan' ? 'bg-green-700' : 'bg-[#07c160]'
+              )} 
+              onClick={() => setActiveTab('scan')}
+            >
               <Scan className="w-7 h-7" />
-           </button>
-        </div>
-        <TabItem active={activeTab === 'coach'} onClick={() => setActiveTab('coach')} icon={<MessageSquare className="w-6 h-6" />} label="AI专家" />
-        <TabItem active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User className="w-6 h-6" />} label="档案" />
-      </nav>
-
-      {/* 工信部备案号（审核要求：页面底部展示） */}
-      <div className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] inset-x-0 mx-auto max-w-[500px] z-[90] px-4 pb-2">
-        <div className="text-center text-[10px] text-gray-400">
+            </button>
+          </div>
           <a
             href="https://beian.miit.gov.cn/"
             target="_blank"
             rel="noreferrer"
-            className="hover:text-gray-500"
+            className="mt-1 text-[9px] leading-none text-gray-400 hover:text-gray-500"
           >
             粤ICP备2026032930号-1
           </a>
         </div>
-      </div>
+        <TabItem active={activeTab === 'coach'} onClick={() => setActiveTab('coach')} icon={<MessageSquare className="w-6 h-6" />} label="AI专家" />
+        <TabItem active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User className="w-6 h-6" />} label="档案" />
+      </nav>
 
       {reportLoading && (
         <div className="fixed top-16 left-0 right-0 max-w-[500px] mx-auto z-[95] px-4">
