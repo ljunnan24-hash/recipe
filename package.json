@@ -9,7 +9,8 @@
     "dev:all": "concurrently \"npm run server\" \"npm run dev\"",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "benchmark:latency": "node scripts/latency-test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

@@ -2355,13 +2355,18 @@ const App = () => {
         </div>
       )}
 
-      <div className={cn("px-4 flex-1 safe-area-pb", backendOk === false ? "pt-28" : "pt-20")}>
+      {/* 引导进行中不展示主 Tab 内容，避免与全屏引导叠层混淆（仅网页版 SPA） */}
+      <div
+        className={cn("px-4 flex-1 safe-area-pb", backendOk === false ? "pt-28" : "pt-20", isNewUser && "hidden")}
+        aria-hidden={isNewUser}
+      >
         <AnimatePresence mode="wait">
           {renderTabContent()}
         </AnimatePresence>
       </div>
 
-      {/* 底部导航栏 */}
+      {/* 底部导航栏：引导/重新评估进行中不展示，避免 z-[520] 盖住引导层底部「下一步」按钮（引导层为 z-[500]） */}
+      {!isNewUser && (
       <nav className="fixed bottom-0 inset-x-0 mx-auto w-full max-w-[500px] bg-white/95 backdrop-blur-md border-t border-gray-100 grid grid-cols-5 items-center pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] z-[520] shadow-[0_-1px_10px_rgba(0,0,0,0.02)]">
         <TabItem active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Home className="w-6 h-6" />} label="数据" />
         <TabItem active={activeTab === 'recipes'} onClick={() => setActiveTab('recipes')} icon={<ClipboardList className="w-6 h-6" />} label="方案" />
@@ -2389,6 +2394,7 @@ const App = () => {
         <TabItem active={activeTab === 'coach'} onClick={() => setActiveTab('coach')} icon={<MessageSquare className="w-6 h-6" />} label="AI专家" />
         <TabItem active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User className="w-6 h-6" />} label="档案" />
       </nav>
+      )}
 
       {reportLoading && (
         <div className="fixed top-16 left-0 right-0 max-w-[500px] mx-auto z-[95] px-4">
