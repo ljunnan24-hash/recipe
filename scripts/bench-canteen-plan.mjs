@@ -1,9 +1,9 @@
 /**
  * 深大南区食堂配餐压测：POST /api/ai/plan + selectedCanteen=szu_south
- * 走本地 planFromCanteenDishes，不调豆包，预期远快于 selectedCanteen=none。
+ * 与 szu_south_ai 相同：豆包从候选 dishId 选菜 + 数据库营养回填（需 DOUBAO_API_KEY）。
  *
  * 用法：npm run benchmark:canteen
- * 需：npm run server 已启动；Supabase 可访问且 canteen_dishes（或 restaurant_menu）有数据。
+ * 需：npm run server；DOUBAO_API_KEY；Supabase 可访问且食堂表有数据。
  *
  * 环境变量：API_BASE 默认 http://127.0.0.1:4301
  */
@@ -67,7 +67,7 @@ async function waitForHealth(maxWaitMs = 15000) {
   return false;
 }
 
-const prompt = `请规划今日三餐，目标总热量约1800kcal。只返回严格 JSON：{"breakfast":{"name":"测试早餐","calories":500,"desc":"d"},"lunch":{"name":"测试午餐","calories":600,"desc":"d"},"dinner":{"name":"测试晚餐","calories":700,"desc":"d"}}`;
+const prompt = `请为我规划今日三餐，目标总热量约1800kcal，清淡少油。`;
 
 const profile = { goal: 'maintain', age: 22, gender: 'male', height: 175, weight: 70 };
 
@@ -98,12 +98,12 @@ async function main() {
   }
 
   const s = stats(rows);
-  console.log('\n=== POST /api/ai/plan (szu_south 深大食堂算法，无豆包) ===');
+  console.log('\n=== POST /api/ai/plan (szu_south = 深大 LLM+dishId，与 szu_south_ai 同路径) ===');
   console.log(
     `汇总: avg=${s.avg}ms  P50≈${s.p50}ms  P90≈${s.p90}ms  2xx=${s.ok2xx}/${s.n}  502=${s.s502}  503=${s.s503}`
   );
   if (s.s503 > 0) {
-    console.warn('\n提示: 出现 503 多为未配置 SUPABASE 或食堂表无数据，请检查 .env 与 Supabase 菜品表。');
+    console.warn('\n提示: 503 多为未配置 DOUBAO_API_KEY / SUPABASE，或食堂表无数据。');
   }
   if (s.ok2xx === 0) {
     process.exit(1);

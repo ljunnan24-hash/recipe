@@ -1,7 +1,7 @@
 /**
  * Recipe API 时延测试（本机）
  * 用法：npm run benchmark:latency
- * 可选：--quick 仅测 health+chat；--canteen 额外测 szu_south 配餐
+ * 可选：--quick 仅测 health+chat；--canteen 额外测 szu_south（LLM+食堂候选，需 DOUBAO）
  *
  * 环境变量：
  *   API_BASE      默认 http://127.0.0.1:4301
@@ -172,10 +172,10 @@ async function main() {
     }
   }
 
-  // 可选：食堂算法路径（需 Supabase 有数据，否则 502/503）
+  // 可选：深大食堂 LLM+dishId（需 DOUBAO + Supabase 菜品）
   if (args.has('--canteen')) {
     results.push(
-      await runBatch('POST /api/ai/plan (szu_south)', 5, () =>
+      await runBatch('POST /api/ai/plan (szu_south LLM)', 5, () =>
         post('/api/ai/plan', {
           prompt,
           selectedCanteen: 'szu_south',

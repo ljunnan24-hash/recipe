@@ -103,9 +103,8 @@ curl -s http://127.0.0.1:4301/api/health
 
 | `selectedCanteen` | 是否必须 `DOUBAO_API_KEY` | 典型还需 |
 |-------------------|---------------------------|----------|
-| `szu_south` | 否（仅本地算法） | `SUPABASE_URL`、`SUPABASE_ANON_KEY` |
-| `szu_south_ai` | 是 | `DOUBAO_API_KEY` + Supabase |
-| `none`（或其它非 `szu_south`） | 是 | `DOUBAO_API_KEY` |
+| `szu_south` / `szu_south_ai` | 是（二者均：豆包选 dishId + DB 回填） | `DOUBAO_API_KEY`、`SUPABASE_URL`、`SUPABASE_ANON_KEY` |
+| `none`（或其它） | 是 | `DOUBAO_API_KEY` |
 
 服务端 `.env` 放置位置示例：`~/recipe/.env`（勿提交到 Git）。
 

@@ -71,7 +71,7 @@ export async function aiScan(imageBase64: string, mimeType: string): Promise<Sca
   });
 }
 
-/** 生成三餐方案（szu_south：本地算法；szu_south_ai：LLM 仅从候选 dishId 选菜并由数据库回填营养） */
+/** 生成三餐方案（szu_south / szu_south_ai：均为 LLM 从候选 dishId 选菜并由数据库回填；none：通用 JSON 配餐） */
 export async function aiPlan(
   prompt: string,
   selectedCanteen?: 'none' | 'szu_south' | 'szu_south_ai',

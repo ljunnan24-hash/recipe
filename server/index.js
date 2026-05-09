@@ -12,8 +12,6 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
-import { planFromCanteenDishes } from './agents/canteenPlanner.js';
-
 const app = express();
 const PORT = Number(process.env.SERVER_PORT) || 4301;
 const isProd = process.env.NODE_ENV === 'production';
@@ -550,7 +548,7 @@ function buildSzuSouthAiUserPrompt({
 /**
  * 多智能体协同（服务端分层，路由仍集中在 index.js）：
  * - vision + 权威成分表：/api/ai/scan（图像识别 → 营养数值纠偏）
- * - 食堂组合优化：./agents/canteenPlanner.js（数据库约束下的三餐/单餐组合）
+ * - 食堂本地组合优化：./agents/canteenPlanner.js（可被脚本单独调用；/api/ai/plan 深大路径已统一为 LLM+dishId）
  * - 食堂 LLM 候选约束：/api/ai/plan + selectedCanteen=szu_south_ai（仅选 dishId，营养服务端回填）
  * - 自然语言配餐：本文件 /api/ai/plan 中豆包 JSON 生成 + 校验
  */
@@ -800,16 +798,16 @@ app.post('/api/ai/plan', async (req, res) => {
     if (!prompt) {
       return res.status(400).json({ error: '缺少 prompt' });
     }
-    /**
-     * 分支与环境变量（本路由）：
-     * - selectedCanteen === 'szu_south'：仅 planFromCanteenDishes；依赖 SUPABASE_URL + SUPABASE_ANON_KEY；不要求 DOUBAO_API_KEY。
-     * - selectedCanteen === 'szu_south_ai'：豆包 + 食堂候选；依赖 DOUBAO_API_KEY、SUPABASE_URL、SUPABASE_ANON_KEY。
-     * - selectedCanteen === 'none' 或其它：通用豆包 JSON；依赖 DOUBAO_API_KEY；可选 Authorization Bearer + Supabase 以合并云端 user_profiles。
-     */
-    const needsDoubao = selectedCanteen !== 'szu_south';
-    if (needsDoubao && !doubaoApiKey) {
+    if (!doubaoApiKey) {
       return res.status(503).json({ error: 'AI 服务未配置 DOUBAO_API_KEY' });
     }
+    /**
+     * 分支与环境变量（本路由）：
+     * - selectedCanteen === 'szu_south' 或 'szu_south_ai'：豆包仅从数据库候选 dishId 选菜 + 服务端回填营养；依赖 DOUBAO_API_KEY、SUPABASE_URL、SUPABASE_ANON_KEY。（二者等价，保留 szu_south 兼容旧客户端）
+     * - selectedCanteen === 'none' 或其它：通用豆包 JSON；依赖 DOUBAO_API_KEY；可选 Authorization Bearer + Supabase 以合并云端 user_profiles。
+     */
+    const isSzuSouthCanteenLlm =
+      selectedCanteen === 'szu_south_ai' || selectedCanteen === 'szu_south';
     const mergedProfile = mergeProfiles(await loadUserProfileFromDb(req), profile);
 
     const mealKeys = ['breakfast', 'lunch', 'dinner'];
@@ -848,16 +846,16 @@ app.post('/api/ai/plan', async (req, res) => {
       return res.status(400).json({ error: refreshCheck.error || '参数错误' });
     }
 
-    if (selectedCanteen === 'szu_south_ai' && refreshMealKey) {
-      return res.status(400).json({ error: 'szu_south_ai 暂不支持单餐换一批，请重新生成全天三餐' });
+    if (isSzuSouthCanteenLlm && refreshMealKey) {
+      return res.status(400).json({ error: '深大食堂 AI 配餐暂不支持单餐换一批，请重新生成全天三餐' });
     }
 
-    if (selectedCanteen === 'szu_south_ai' && !supabase) {
+    if (isSzuSouthCanteenLlm && !supabase) {
       return res.status(503).json({ error: '未配置 SUPABASE_ANON_KEY，无法从深大食堂数据库挑选菜品' });
     }
 
-    // 深大食堂 + LLM：仅从候选 dishId 选菜，营养由数据库回填
-    if (selectedCanteen === 'szu_south_ai') {
+    // 深大食堂 + LLM：仅从候选 dishId 选菜，营养由数据库回填（szu_south / szu_south_ai 均走此路径）
+    if (isSzuSouthCanteenLlm) {
       let dishes;
       try {
         dishes = await getCanteenDishes('szu_south');
@@ -946,63 +944,9 @@ app.post('/api/ai/plan', async (req, res) => {
       return res.status(502).json({ error: 'AI 返回的方案不符合候选约束，请稍后重试' });
     }
 
-    if (selectedCanteen === 'szu_south' && !supabase) {
-      return res.status(503).json({ error: '未配置 SUPABASE_ANON_KEY，无法从深大食堂数据库挑选菜品' });
-    }
-
-    // 深大食堂：直接从 Supabase 菜谱中按目标挑选，确保推荐菜名来自数据库
-    if (selectedCanteen === 'szu_south') {
-      let dishes;
-      try {
-        dishes = await getCanteenDishes('szu_south');
-      } catch (e) {
-        return res.status(502).json({ error: e?.message || '无法连接食堂数据库' });
-      }
-      if (!dishes.length) {
-        return res.status(503).json({ error: '深大食堂数据库暂无菜品数据（canteen_dishes 为空）' });
-      }
-      const plannerOpts = refreshMealKey && mealKeys.includes(refreshMealKey)
-        ? { refreshMealKey, fixedMeals }
-        : {};
-      const planned = planFromCanteenDishes(dishes, mergedProfile, targets, mergedAvoidList, plannerOpts);
-      if (!planned) {
-        return res.status(502).json({ error: '无法从数据库菜谱中生成方案，请补充菜谱数据后重试' });
-      }
-      return res.json(planned);
-    }
-
     let finalPrompt = prompt;
     let allowedDishNames = null;
     const avoidSet = new Set(mergedAvoidList);
-    if (selectedCanteen === 'szu_south' && supabase) {
-      const dishes = await getCanteenDishes('szu_south');
-      if (!dishes.length) {
-        return res.status(503).json({ error: '深大食堂数据库暂无菜品数据（canteen_dishes 为空）' });
-      }
-      allowedDishNames = new Set(dishes.map((d) => d.name).filter(Boolean));
-      if (dishes.length > 0) {
-        const byCategory = { breakfast: [], lunch: [], dinner: [], snack: [] };
-        dishes.forEach((d) => {
-          if (byCategory[d.category]) byCategory[d.category].push(d);
-          else byCategory.lunch.push(d);
-        });
-        const lines = [];
-        ['breakfast', 'lunch', 'dinner'].forEach((cat) => {
-          const list = byCategory[cat];
-          if (list && list.length) {
-            const label = { breakfast: '早餐', lunch: '午餐', dinner: '晚餐' }[cat];
-            lines.push(`${label}可选菜品（仅从以下挑选，并严格使用表中的热量与营养数据）：`);
-            list.forEach((d) => {
-              lines.push(`- ${d.name}：${d.calories}kcal，蛋白质${d.protein}g，碳水${d.carbs}g，脂肪${d.fat}g${d.description ? `（${d.description}）` : ''}`);
-            });
-          }
-        });
-        const dishBlock = lines.length
-          ? `\n\n【深大南区食堂当前菜单与营养数据】\n${lines.join('\n')}\n\n请仅从以上菜品中为用户搭配三餐，返回的 name 必须与上表一致，calories 必须使用表中数值。\n\n`
-          : '';
-        finalPrompt = dishBlock + prompt;
-      }
-    }
     finalPrompt += `\n\n【权威用户档案（服务器侧，来自登录用户云端档案；如与上文冲突以此为准）】\n${JSON.stringify(
       mergedProfile
     )}\n`;
