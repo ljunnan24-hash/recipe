@@ -9,7 +9,7 @@
 
     <view class="divider"></view>
 
-    <button class="btn-primary full" bindtap="onTryPlan" loading="{{loading}}">{{result ? '换一批推荐' : '生成今日方案'}}</button>
+    <button class="btn-primary full" bindtap="onTryPlan" data-meal="" loading="{{loading}}">{{result ? '三餐全部换一批' : '生成今日方案'}}</button>
     <text class="mutedTiny" wx:if="{{loading && retryCount}}">重试中（第 {{retryCount}} 次）…</text>
     <text class="err" wx:if="{{err}}">{{err}}</text>
     <view wx:if="{{result}}" class="result">
@@ -25,16 +25,19 @@
         <text class="mealLabel">早餐</text>
         <text class="mealName">{{result.breakfast.name}}</text>
         <text class="mealMeta">{{result.breakfast.calories}} kcal</text>
+        <button class="btn-ghost full" size="mini" bindtap="onTryPlan" data-meal="breakfast" loading="{{loading}}" disabled="{{loading}}">仅换早餐</button>
       </view>
       <view class="mealCard">
         <text class="mealLabel">午餐</text>
         <text class="mealName">{{result.lunch.name}}</text>
         <text class="mealMeta">{{result.lunch.calories}} kcal</text>
+        <button class="btn-ghost full" size="mini" bindtap="onTryPlan" data-meal="lunch" loading="{{loading}}" disabled="{{loading}}">仅换午餐</button>
       </view>
       <view class="mealCard">
         <text class="mealLabel">晚餐</text>
         <text class="mealName">{{result.dinner.name}}</text>
         <text class="mealMeta">{{result.dinner.calories}} kcal</text>
+        <button class="btn-ghost full" size="mini" bindtap="onTryPlan" data-meal="dinner" loading="{{loading}}" disabled="{{loading}}">仅换晚餐</button>
       </view>
     </view>
   </view>

@@ -1,5 +1,41 @@
 const { aiPlan } = require('../../utils/api.js')
-const { getJSON, KEYS } = require('../../utils/storage.js')
+const { getJSON, KEYS, setJSON } = require('../../utils/storage.js')
+
+function mergeDeclinedDishNames(prev, names) {
+  const s = new Set()
+  ;(prev || []).forEach((x) => {
+    const t = String(x || '').trim()
+    if (t) s.add(t)
+  })
+  ;(names || []).forEach((x) => {
+    const t = String(x || '').trim()
+    if (t) s.add(t)
+  })
+  return Array.from(s).slice(-60)
+}
+
+function collectDishNamesFromMeal(meal) {
+  if (!meal) return []
+  if (Array.isArray(meal.dishNames) && meal.dishNames.length) {
+    return meal.dishNames.map((x) => String(x || '').trim()).filter(Boolean)
+  }
+  if (meal.name) return [String(meal.name).trim()].filter(Boolean)
+  return []
+}
+
+function appendMealRefreshHistory(prev, entry) {
+  return [...(prev || []), entry].slice(-100)
+}
+
+function bumpDeclinedStats(prev, names) {
+  const out = { ...(prev || {}) }
+  for (const n of names || []) {
+    const k = String(n || '').trim()
+    if (!k) continue
+    out[k] = (out[k] || 0) + 1
+  }
+  return Object.fromEntries(Object.entries(out).sort((a, b) => b[1] - a[1]).slice(0, 80))
+}
 
 function buildPlanPrompt(profile) {
   const profileJson = JSON.stringify(profile || {})
@@ -23,18 +59,71 @@ Page({
     result: null,
     retryCount: 0
   },
-  async onTryPlan() {
-    this.setData({ loading: true, err: '', result: null, retryCount: 0 })
+  async onTryPlan(e) {
+    const mealKey = e?.currentTarget?.dataset?.meal
+    const prev = this.data.result
+    const isRefresh = Boolean(prev)
+    const isSingle = mealKey === 'breakfast' || mealKey === 'lunch' || mealKey === 'dinner'
+
+    this.setData({ loading: true, err: '', retryCount: 0 })
     try {
-      const profile = getJSON(KEYS.profile, null)
+      let profile = getJSON(KEYS.profile, null) || {}
+      const selectedCanteen = getJSON(KEYS.selectedCanteen, 'none')
+      if (isRefresh && prev) {
+        const keys = isSingle ? [mealKey] : ['breakfast', 'lunch', 'dinner']
+        const namesToDecline = keys.flatMap((k) => collectDishNamesFromMeal(prev[k]))
+        const scope = isSingle ? mealKey : 'all'
+        const logEntry = {
+          ts: Date.now(),
+          scope,
+          dishNames: namesToDecline,
+          selectedCanteen,
+          mealTitles: {
+            breakfast: prev.breakfast && prev.breakfast.name,
+            lunch: prev.lunch && prev.lunch.name,
+            dinner: prev.dinner && prev.dinner.name
+          }
+        }
+        profile = {
+          ...profile,
+          declinedDishNames: mergeDeclinedDishNames(profile.declinedDishNames, namesToDecline),
+          mealRefreshHistory: appendMealRefreshHistory(profile.mealRefreshHistory, logEntry),
+          declinedDishStats: bumpDeclinedStats(profile.declinedDishStats, namesToDecline)
+        }
+        setJSON(KEYS.profile, profile)
+      }
+
+      const avoidFromCurrent =
+        isRefresh && prev
+          ? isSingle
+            ? collectDishNamesFromMeal(prev[mealKey])
+            : ['breakfast', 'lunch', 'dinner'].flatMap((k) => collectDishNamesFromMeal(prev[k]))
+          : []
+
+      const persistedAvoid = (profile.declinedDishNames || []).slice(-40)
+      const mergedAvoid = [...new Set([...avoidFromCurrent, ...persistedAvoid])]
+
       const prompt = buildPlanPrompt(profile)
 
-      // 后端本身会重试一次；前端再补 1-2 次，减少偶发“方案不符合要求”
+      const extra = {
+        profile,
+        avoidNames: mergedAvoid,
+        refreshMealKey: isRefresh && isSingle ? mealKey : undefined,
+        fixedMeals:
+          isRefresh && isSingle && prev
+            ? {
+                breakfast: prev.breakfast,
+                lunch: prev.lunch,
+                dinner: prev.dinner
+              }
+            : undefined
+      }
+
       let lastErr = null
       for (let i = 0; i < 3; i++) {
         this.setData({ retryCount: i })
         try {
-          const res = await aiPlan(prompt, 'none', { profile })
+          const res = await aiPlan(prompt, 'none', extra)
           this.setData({ result: res, err: '' })
           lastErr = null
           break

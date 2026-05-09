@@ -71,19 +71,59 @@ export async function aiScan(imageBase64: string, mimeType: string): Promise<Sca
   });
 }
 
-/** 生成三餐方案（selectedCanteen 为 szu_south 时后端从 Supabase 拉取深大食堂菜品并做针对性推荐） */
+/** 生成三餐方案（szu_south：本地算法；szu_south_ai：LLM 仅从候选 dishId 选菜并由数据库回填营养） */
 export async function aiPlan(
   prompt: string,
-  selectedCanteen?: 'none' | 'szu_south',
+  selectedCanteen?: 'none' | 'szu_south' | 'szu_south_ai',
   extra?: {
     profile?: unknown;
     targets?: { calories?: number };
     avoidNames?: string[];
+    /** 仅更换某一餐时传入，并配合 fixedMeals（由前端从当前方案带上） */
+    refreshMealKey?: 'breakfast' | 'lunch' | 'dinner';
+    fixedMeals?: {
+      breakfast?: { name: string; calories: number; desc: string; category?: string; dishNames?: string[] };
+      lunch?: { name: string; calories: number; desc: string; category?: string; dishNames?: string[] };
+      dinner?: { name: string; calories: number; desc: string; category?: string; dishNames?: string[] };
+    };
   }
 ): Promise<{
-  breakfast?: { name: string; calories: number; desc: string; category?: string; dishNames?: string[] };
-  lunch?: { name: string; calories: number; desc: string; category?: string; dishNames?: string[] };
-  dinner?: { name: string; calories: number; desc: string; category?: string; dishNames?: string[] };
+  breakfast?: {
+    name: string;
+    calories: number;
+    desc: string;
+    category?: string;
+    dishNames?: string[];
+    dishIds?: string[];
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    source?: string;
+  };
+  lunch?: {
+    name: string;
+    calories: number;
+    desc: string;
+    category?: string;
+    dishNames?: string[];
+    dishIds?: string[];
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    source?: string;
+  };
+  dinner?: {
+    name: string;
+    calories: number;
+    desc: string;
+    category?: string;
+    dishNames?: string[];
+    dishIds?: string[];
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    source?: string;
+  };
 }> {
   return request('/ai/plan', {
     method: 'POST',
@@ -93,12 +133,25 @@ export async function aiPlan(
       profile: extra?.profile,
       targets: extra?.targets,
       avoidNames: extra?.avoidNames,
+      refreshMealKey: extra?.refreshMealKey,
+      fixedMeals: extra?.fixedMeals,
     },
   });
 }
 
 /** 获取食堂菜品列表（如深大南区菜单） */
-export async function getCanteenDishes(canteen: string = 'szu_south'): Promise<{ dishes: Array<{ name: string; calories: number; protein: number; carbs: number; fat: number; category: string; description?: string }> }> {
+export async function getCanteenDishes(canteen: string = 'szu_south'): Promise<{
+  dishes: Array<{
+    id?: string;
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    category: string;
+    description?: string;
+  }>;
+}> {
   return request(`/canteen/dishes?canteen=${encodeURIComponent(canteen)}`);
 }
 

@@ -179,6 +179,66 @@ const API_BASE = 'https://your-domain.com/api'
 
 ---
 
+## 部署与更新备忘（踩坑记录）
+
+以下为真实环境排查时的经验，避免「路径不对、PM2 找不到、命令打错」反复卡住。
+
+### 1. 项目目录在哪
+
+- 文档里常写 `~/recipe`，但 **`~` 随登录用户变化**：`root` 的 `~/recipe` 是 **`/root/recipe`**，`ubuntu` 的则是 **`/home/ubuntu/recipe`**。
+- 腾讯云轻量默认用 **`ubuntu` 用户**克隆时，代码往往在 **`/home/ubuntu/recipe`**，在 root 下执行 `cd ~/recipe` 会报 **No such file** 属正常。
+- 不记得路径时，在服务器上搜索目录名：
+
+```bash
+find /root /home /opt /var/www -maxdepth 6 -type d -name "recipe" 2>/dev/null
+```
+
+进入目录后可用 `pwd` 确认；**Nginx 的 `root`** 必须指向该目录下的 **`dist/`**（例如 `/home/ubuntu/recipe/dist`）。
+
+### 2. 首次部署 vs 更新代码
+
+- 若服务器上**还没有**克隆过仓库，不存在项目目录，需先 **`git clone`**（再 `cd` 进去配 `.env`、`npm ci`、`npm run build`），不能只做 `git pull`。
+- **`git pull origin main`**：从当前仓库配置的远程 **`origin`** 拉取 **`main`** 分支；实际 URL 以仓库为准，在**项目目录内**执行 `git remote -v` 可看到（一般为 GitHub 上的本仓库地址）。
+
+### 3. PM2 与 Linux 用户
+
+- **PM2 进程列表按操作系统用户隔离**：在 **`root`** 下执行 `pm2 list` 为空，不代表服务没跑——可能曾在 **`ubuntu`** 用户下执行过 `pm2 start`。
+- 排查或重启时，先 **`su - ubuntu`**（或 SSH 直接登录 `ubuntu`），再：
+
+```bash
+cd /home/ubuntu/recipe
+pm2 list
+pm2 restart recipe-api
+```
+
+- 进程名是 **`recipe-api`**（中间有连字符），查看详情用：`pm2 show recipe-api`（不要拆成两个单词）。
+
+### 4. 命令与权限
+
+- **`systemctl reload nginx`**：服务名是 **`nginx`**，若打成 **`ngin`** 会报 **Unit not found**。
+- 已是 **root** 时一般**不需要** `sudo`；精简镜像若提示 **`sudo: command not found`**，可 `apt install -y sudo`，或直接用 root 执行 `nginx -t`、`systemctl reload nginx`。
+- 不要用 **`sudo root`** 这类无效命令；需要 root 权限时直接以 root 登录或使用 **`sudo -i`**（在具备 sudo 的普通用户下）。
+
+### 5. 更新网页版（路径已确定为 `/home/ubuntu/recipe` 时）
+
+在 **`ubuntu` 用户**下（与当初克隆、PM2 启动用户保持一致）：
+
+```bash
+cd /home/ubuntu/recipe
+git pull origin main
+npm ci
+npm run build
+pm2 restart recipe-api
+```
+
+root 下重载 Nginx（若需）：
+
+```bash
+nginx -t && systemctl reload nginx
+```
+
+---
+
 ## 自检清单
 
 - [ ] `curl -s https://你的域名/api/health` 返回 JSON `ok`

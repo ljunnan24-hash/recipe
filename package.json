@@ -10,7 +10,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
-    "benchmark:latency": "node scripts/latency-test.mjs"
+    "benchmark:latency": "node scripts/latency-test.mjs",
+    "benchmark:ai-only": "node scripts/bench-ai-only.mjs",
+    "benchmark:canteen": "node scripts/bench-canteen-plan.mjs",
+    "benchmark:canteen-llm": "node scripts/bench-canteen-llm-plan.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

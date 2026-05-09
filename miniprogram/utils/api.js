@@ -13,7 +13,9 @@ function aiPlan(prompt, selectedCanteen, extra) {
     selectedCanteen: selectedCanteen || 'none',
     profile: extra && extra.profile,
     targets: extra && extra.targets,
-    avoidNames: extra && extra.avoidNames
+    avoidNames: extra && extra.avoidNames,
+    refreshMealKey: extra && extra.refreshMealKey,
+    fixedMeals: extra && extra.fixedMeals
   })
 }
 

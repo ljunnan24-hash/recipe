@@ -202,6 +202,23 @@ interface UserProfile {
   habits: string[];
   activityLevel: ActivityLevel;
   trackingNeeds: string[];
+  /** 换一批时累积的菜品名，用于动态画像与后端去重（尽量避开） */
+  declinedDishNames?: string[];
+  /** 每次换一批的明细（登录用户随 profile 同步到 Supabase，便于分析偏好） */
+  mealRefreshHistory?: MealRefreshLogEntry[];
+  /** 菜品被「换一批」累计次数，用于识别强负面偏好 */
+  declinedDishStats?: Record<string, number>;
+}
+
+/** 换一批行为日志（单条） */
+interface MealRefreshLogEntry {
+  ts: number;
+  scope: 'all' | 'breakfast' | 'lunch' | 'dinner';
+  /** 本次不满意的组成菜名（食堂模式为真实菜名） */
+  dishNames: string[];
+  selectedCanteen: CanteenType;
+  /** 当时三餐组合标题，便于复盘 */
+  mealTitles?: { breakfast?: string; lunch?: string; dinner?: string };
 }
 
 interface NutritionData {
@@ -236,6 +253,62 @@ const MEAL_LABELS: Record<MealType, string> = {
   dinner: '晚餐',
   snack: '加餐'
 };
+
+function mergeDeclinedDishNames(prev: string[] | undefined, names: string[]): string[] {
+  const s = new Set<string>();
+  for (const x of prev || []) {
+    const t = String(x || '').trim();
+    if (t) s.add(t);
+  }
+  for (const x of names) {
+    const t = String(x || '').trim();
+    if (t) s.add(t);
+  }
+  return Array.from(s).slice(-60);
+}
+
+function collectDishNamesFromMeal(meal: PlannedMeal | undefined): string[] {
+  if (!meal) return [];
+  if (Array.isArray(meal.dishNames) && meal.dishNames.length) {
+    return meal.dishNames.map((x) => String(x || '').trim()).filter(Boolean);
+  }
+  if (meal.name) return [meal.name.trim()].filter(Boolean);
+  return [];
+}
+
+function appendMealRefreshHistory(
+  prev: MealRefreshLogEntry[] | undefined,
+  entry: MealRefreshLogEntry
+): MealRefreshLogEntry[] {
+  return [...(prev || []), entry].slice(-100);
+}
+
+/** 按菜名累计「被换一批」次数，保留频次最高的若干条 */
+function bumpDeclinedStats(
+  prev: Record<string, number> | undefined,
+  names: string[]
+): Record<string, number> {
+  const out: Record<string, number> = { ...(prev || {}) };
+  for (const n of names) {
+    const k = String(n || '').trim();
+    if (!k) continue;
+    out[k] = (out[k] || 0) + 1;
+  }
+  return Object.fromEntries(
+    Object.entries(out)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 80)
+  );
+}
+
+function formatTopDeclinedForPrompt(stats: Record<string, number> | undefined): string {
+  if (!stats || !Object.keys(stats).length) return '';
+  return Object.entries(stats)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15)
+    .map(([name, c]) => `${name}（${c}次）`)
+    .join('、');
+}
 
 // --- 通用组件 ---
 
@@ -461,6 +534,32 @@ const App = () => {
       dietaryRestrictions: Array.isArray(saved.dietaryRestrictions) ? saved.dietaryRestrictions : [],
       habits: Array.isArray(saved.habits) ? saved.habits : [],
       trackingNeeds: Array.isArray(saved.trackingNeeds) ? saved.trackingNeeds : ['calories', 'protein'],
+      declinedDishNames: Array.isArray((saved as any).declinedDishNames)
+        ? (saved as any).declinedDishNames.map((x: any) => String(x || '').trim()).filter(Boolean).slice(-60)
+        : undefined,
+      mealRefreshHistory: Array.isArray((saved as any).mealRefreshHistory)
+        ? (saved as any).mealRefreshHistory
+            .filter(
+              (x: any) =>
+                x &&
+                typeof x.ts === 'number' &&
+                Array.isArray(x.dishNames) &&
+                (x.scope === 'all' || x.scope === 'breakfast' || x.scope === 'lunch' || x.scope === 'dinner')
+            )
+            .slice(-100)
+        : undefined,
+      declinedDishStats: (() => {
+        const raw = (saved as any).declinedDishStats;
+        if (!raw || typeof raw !== 'object') return undefined;
+        const out: Record<string, number> = {};
+        for (const [k, v] of Object.entries(raw)) {
+          const nk = String(k || '').trim();
+          const n = Number(v);
+          if (!nk || !Number.isFinite(n) || n < 1) continue;
+          out[nk] = Math.min(9999, Math.floor(n));
+        }
+        return Object.fromEntries(Object.entries(out).sort((a, b) => b[1] - a[1]).slice(0, 80));
+      })(),
     };
   });
 
@@ -1280,9 +1379,10 @@ const App = () => {
     })();
   };
 
-  const generatePlan = async (opts?: { refresh?: boolean }) => {
+  const generatePlan = async (opts?: { refresh?: boolean; mealKey?: 'breakfast' | 'lunch' | 'dinner' }) => {
     setPlanLoading(true);
     try {
+      let profileForRequest = profile;
       const prevPlan = plannedMeals
         ? {
             breakfast: plannedMeals.breakfast?.name,
@@ -1290,39 +1390,91 @@ const App = () => {
             dinner: plannedMeals.dinner?.name,
           }
         : null;
-      // “深大食堂”模式下后端会按单个菜名去重/避开，
-      // 因此此处优先使用每餐返回的 dishNames（组成该餐的真实菜品名）。
-      const avoidList = opts?.refresh && plannedMeals
-        ? (['breakfast', 'lunch', 'dinner'] as const)
-          .flatMap((k) => {
-            const dm = plannedMeals[k].dishNames;
-            if (Array.isArray(dm) && dm.length) return dm.filter(Boolean);
-            // 兜底：如果后端没有提供 dishNames，则退化使用 meal name
-            const fallback = plannedMeals[k].name;
-            return fallback ? [fallback] : [];
-          })
-          .filter(Boolean)
-        : [];
+
+      // 换一批 = 对当前方案不满意：写入菜名列表、按次统计、时间线日志（登录用户随 profile 同步到 Supabase）
+      if (opts?.refresh && plannedMeals) {
+        const keys: ('breakfast' | 'lunch' | 'dinner')[] = opts.mealKey
+          ? [opts.mealKey]
+          : (['breakfast', 'lunch', 'dinner'] as const);
+        const namesToDecline = keys.flatMap((k) => collectDishNamesFromMeal(plannedMeals[k]));
+        const nextDeclined = mergeDeclinedDishNames(profile.declinedDishNames, namesToDecline);
+        const scope: MealRefreshLogEntry['scope'] = opts.mealKey ?? 'all';
+        const logEntry: MealRefreshLogEntry = {
+          ts: Date.now(),
+          scope,
+          dishNames: namesToDecline,
+          selectedCanteen,
+          mealTitles: {
+            breakfast: plannedMeals.breakfast?.name,
+            lunch: plannedMeals.lunch?.name,
+            dinner: plannedMeals.dinner?.name,
+          },
+        };
+        profileForRequest = {
+          ...profile,
+          declinedDishNames: nextDeclined,
+          mealRefreshHistory: appendMealRefreshHistory(profile.mealRefreshHistory, logEntry),
+          declinedDishStats: bumpDeclinedStats(profile.declinedDishStats, namesToDecline),
+        };
+        setProfile(profileForRequest);
+      }
+
+      const avoidFromCurrent =
+        opts?.refresh && plannedMeals
+          ? opts.mealKey
+            ? collectDishNamesFromMeal(plannedMeals[opts.mealKey])
+            : (['breakfast', 'lunch', 'dinner'] as const).flatMap((k) => {
+                const dm = plannedMeals[k].dishNames;
+                if (Array.isArray(dm) && dm.length) return dm.filter(Boolean);
+                const fallback = plannedMeals[k].name;
+                return fallback ? [fallback] : [];
+              })
+          : [];
+
+      const persistedAvoid = (profileForRequest.declinedDishNames || []).slice(-40);
+      const mergedAvoid = [...new Set([...avoidFromCurrent, ...persistedAvoid])];
+
+      const topDeclinedLine = formatTopDeclinedForPrompt(profileForRequest.declinedDishStats);
+      const recentDeclinedLine =
+        (profileForRequest.declinedDishNames || []).length > 0
+          ? `近期换掉的菜品（尽量不要再推荐）：${profileForRequest.declinedDishNames!.slice(-25).join('、')}。`
+          : '';
+      const declinedHint = [topDeclinedLine ? `按换一批次数排序，用户较不喜欢的菜品：${topDeclinedLine}。` : '', recentDeclinedLine]
+        .filter(Boolean)
+        .join('');
+
       const context = selectedCanteen === 'szu_south' ? "针对深圳大学南区食堂特色菜。" : "通用家常菜。";
+      const p = profileForRequest;
       const prompt = `你现在是AI营养专家。
       用户档案：
-      - 基本信息：年龄${profile.age}，性别${profile.gender === 'male' ? '男' : '女'}，身高${profile.height}cm，体重${profile.weight}kg，目标体重${profile.targetWeight}kg。
-      - 作息：起床${profile.wakeUpTime}，睡觉${profile.sleepTime}，${profile.mealFrequency}餐制。
-      - 健身：目标${profile.goal}，每周训练${profile.trainingDays}天，类型${profile.trainingType}，时段${profile.trainingTime}${profile.isFasted ? '(空腹)' : ''}。
-      - 身体：体脂率${profile.bodyFat || '未知'}%，腰围${profile.waist || '未知'}cm，健康状况：${(profile.healthConditions || []).join(', ') || '无'}。
-      - 饮食：限制：${(profile.dietaryRestrictions || []).join(', ') || '无'}，常吃：${profile.commonIngredients || '无'}，讨厌：${profile.hatedIngredients || '无'}，用餐条件：${profile.diningCondition}，习惯：${(profile.habits || []).join(', ') || '无'}。
-      - 活动量：${profile.activityLevel}。
+      - 基本信息：年龄${p.age}，性别${p.gender === 'male' ? '男' : '女'}，身高${p.height}cm，体重${p.weight}kg，目标体重${p.targetWeight}kg。
+      - 作息：起床${p.wakeUpTime}，睡觉${p.sleepTime}，${p.mealFrequency}餐制。
+      - 健身：目标${p.goal}，每周训练${p.trainingDays}天，类型${p.trainingType}，时段${p.trainingTime}${p.isFasted ? '(空腹)' : ''}。
+      - 身体：体脂率${p.bodyFat || '未知'}%，腰围${p.waist || '未知'}cm，健康状况：${(p.healthConditions || []).join(', ') || '无'}。
+      - 饮食：限制：${(p.dietaryRestrictions || []).join(', ') || '无'}，常吃：${p.commonIngredients || '无'}，讨厌：${p.hatedIngredients || '无'}，用餐条件：${p.diningCondition}，习惯：${(p.habits || []).join(', ') || '无'}。
+      - 活动量：${p.activityLevel}。
+      ${declinedHint ? `- 动态偏好：${declinedHint}` : ''}
       
       请为该用户规划今日三餐，目标总热量约为${goalInfo.calories}kcal。${context}
       分配建议：早餐约25%，午餐约40%，晚餐约35%（可微调，但全天总量要贴近目标）。
       营养分配建议：蛋白质约30%，碳水约45%，脂肪约25%。
       请确保餐食名称具体（如“香煎三文鱼配西兰花”而非“鱼和蔬菜”），描述中包含主要的食材和烹饪方式。
-      ${avoidList.length ? `避免与以下菜品重复（换一批推荐）：${avoidList.join('、')}。` : ''}
+      ${mergedAvoid.length ? `避免与以下菜品重复（换一批推荐）：${mergedAvoid.join('、')}。` : ''}
       只返回严格 JSON（不要 Markdown/解释文字）：{"breakfast":{"name":"...","calories":数字,"desc":"..."},"lunch":{"name":"...","calories":数字,"desc":"..."},"dinner":{"name":"...","calories":数字,"desc":"..."}}。`;
       const result = await aiPlan(prompt, selectedCanteen, {
-        profile,
+        profile: profileForRequest,
         targets: { calories: goalInfo.calories },
-        avoidNames: avoidList,
+        avoidNames: mergedAvoid,
+        refreshMealKey:
+          opts?.refresh && opts?.mealKey && plannedMeals ? opts.mealKey : undefined,
+        fixedMeals:
+          opts?.refresh && opts?.mealKey && plannedMeals
+            ? {
+                breakfast: plannedMeals.breakfast,
+                lunch: plannedMeals.lunch,
+                dinner: plannedMeals.dinner,
+              }
+            : undefined,
       });
       const normalized = normalizePlannedMeals(result);
       if (!normalized) {
@@ -1334,6 +1486,7 @@ const App = () => {
           type: 'plan_generated',
           ts: Date.now(),
           refresh: Boolean(opts?.refresh),
+          mealScope: opts?.mealKey ?? 'all',
           selectedCanteen,
           prevPlan,
           newPlan: {
@@ -1346,7 +1499,7 @@ const App = () => {
       } catch {
         // ignore
       }
-      showToast("方案已生成");
+      showToast(opts?.mealKey ? `${MEAL_LABELS[opts.mealKey]}已换新` : "方案已生成");
     } catch (e) {
       const msg = (e as any)?.message || "生成失败，请稍后";
       showToast(msg, "error");
@@ -1852,12 +2005,17 @@ const App = () => {
                   </button>
                   <button
                     onClick={() => {
-                      // 记录“用户主动换一批”行为，用于评估推荐是否合适
                       try {
                         const ev = {
                           type: 'plan_refresh_clicked',
                           ts: Date.now(),
+                          scope: 'all' as const,
                           selectedCanteen,
+                          dishNames: plannedMeals
+                            ? (['breakfast', 'lunch', 'dinner'] as const).flatMap((k) =>
+                                collectDishNamesFromMeal(plannedMeals[k])
+                              )
+                            : [],
                           prevPlan: plannedMeals
                             ? {
                                 breakfast: plannedMeals.breakfast?.name,
@@ -1916,6 +2074,33 @@ const App = () => {
                     <div className="p-4">
                       <h3 className="text-base font-bold mb-1 truncate">{meal?.name}</h3>
                       <p className="text-[11px] text-gray-400 leading-relaxed">{meal?.desc}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try {
+                            pushDayEvent({
+                              type: 'plan_refresh_clicked',
+                              ts: Date.now(),
+                              scope: type,
+                              selectedCanteen,
+                              dishNames: collectDishNamesFromMeal(meal),
+                              prevMealName: meal?.name,
+                            });
+                          } catch {
+                            // ignore
+                          }
+                          void generatePlan({ refresh: true, mealKey: type });
+                        }}
+                        disabled={planLoading}
+                        className={cn(
+                          'mt-3 w-full py-2 rounded-xl text-[11px] font-bold border transition-colors',
+                          planLoading
+                            ? 'border-gray-100 text-gray-300'
+                            : 'border-green-100 text-green-700 bg-green-50/50 active:bg-green-100/80'
+                        )}
+                      >
+                        换一批（仅{MEAL_LABELS[type]}）
+                      </button>
                     </div>
                   </div>
                   );

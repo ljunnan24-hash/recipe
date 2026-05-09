@@ -12,6 +12,7 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
+import { planFromCanteenDishes } from './agents/canteenPlanner.js';
 
 const app = express();
 const PORT = Number(process.env.SERVER_PORT) || 4301;
@@ -307,11 +308,22 @@ async function getCanteenDishes(canteenKey) {
 
   const { data: d1, error: e1 } = await supabase
     .from('canteen_dishes')
-    .select('name, calories, protein, carbs, fat, category, description')
+    .select('*')
     .eq('canteen_key', canteenKey)
     .order('category');
 
-  if (!e1) return d1 || [];
+  if (!e1) {
+    return (d1 || []).map((r, i) => ({
+      id: r.id != null && r.id !== '' ? String(r.id) : `dish_${i}`,
+      name: r.name,
+      calories: Number(r.calories) || 0,
+      protein: Number(r.protein) || 0,
+      carbs: Number(r.carbs ?? r.carb ?? r.carb_g) || 0,
+      fat: Number(r.fat) || 0,
+      category: r.category || 'lunch',
+      description: typeof r.description === 'string' ? r.description : '',
+    }));
+  }
 
   const msg1 = String(e1?.message || '');
   const net1 = normalizeNetworkError(msg1);
@@ -342,267 +354,206 @@ async function getCanteenDishes(canteenKey) {
   }
 
   // restaurant_menu 不区分食堂；此处保留 canteenKey 参数以保持调用签名一致
-  return (d2 || []).map((r) => ({
+  return (d2 || []).map((r, i) => ({
+    id: r.id != null && r.id !== '' ? String(r.id) : `dish_${i}`,
     name: r.dish_name,
     calories: Number(r.calories) || 0,
     protein: 0,
     carbs: 0,
     fat: 0,
     category: r.category || 'lunch',
-    description: r.remark || '',
+    description: typeof r.remark === 'string' ? r.remark : '',
   }));
 }
 
-function planFromCanteenDishes(dishes, profile, targets, avoidNames) {
-  const goal = profile?.goal || 'maintain';
-  const targetCalories = Number(targets?.calories) || 1800;
+/** 将食堂菜品数组转为 dishId -> 记录 Map（供 szu_south_ai 校验与回填） */
+function buildDishMapFromDishes(dishes) {
+  const map = new Map();
+  (dishes || []).forEach((d, i) => {
+    let id =
+      d && d.id != null && String(d.id).trim() !== '' ? String(d.id).trim() : `dish_${i}`;
+    let candidate = id;
+    let n = 0;
+    while (map.has(candidate)) {
+      n += 1;
+      candidate = `${id}__dup${n}`;
+    }
+    id = candidate;
+    map.set(id, {
+      id,
+      name: String(d.name || ''),
+      calories: Number(d.calories) || 0,
+      protein: Number(d.protein) || 0,
+      carbs: Number(d.carbs) || 0,
+      fat: Number(d.fat) || 0,
+      category: d.category || 'lunch',
+      description: typeof d.description === 'string' ? d.description : '',
+    });
+  });
+  return map;
+}
 
-  const avoid = new Set((Array.isArray(avoidNames) ? avoidNames : []).filter(Boolean));
+function goalLabelFromProfile(profile) {
+  const g = profile?.goal || 'maintain';
+  if (g === 'lose') return '减脂';
+  if (g === 'gain') return '增肌';
+  if (g === 'shape') return '塑形';
+  return '维持';
+}
 
-  // 有些数据库只有“菜品分类”而非三餐分类（如：热菜/小炒/主食），这里不强依赖 category=breakfast/lunch/dinner
-  const allDishes = (dishes || []).slice();
-  const hasMacros = allDishes.some((d) => (Number(d?.protein) || 0) > 0 || (Number(d?.carbs) || 0) > 0 || (Number(d?.fat) || 0) > 0);
+/**
+ * 校验 LLM 输出的 dishIds 方案
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
+function validateDishIdPlan(plan, dishMap, avoidNames) {
+  const mealKeys = ['breakfast', 'lunch', 'dinner'];
+  const avoidSet = new Set((avoidNames || []).map((s) => String(s || '').trim()).filter(Boolean));
 
-  const normalizeTokens = (value) => {
-    if (!value) return [];
-    if (Array.isArray(value)) return value.map(String).flatMap((s) => normalizeTokens(s));
-    return String(value)
-      .split(/[\s,，、;；/|]+/g)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  };
-
-  const hatedTokens = normalizeTokens(profile?.hatedIngredients);
-  const restrictionsTokens = normalizeTokens(profile?.dietaryRestrictions);
-  const healthTokens = normalizeTokens(profile?.healthConditions);
-
-  const containsAny = (haystack, tokens) => {
-    if (!haystack) return false;
-    for (const t of tokens || []) {
-      if (t && haystack.includes(t)) return true;
+  const nameHitsAvoid = (name) => {
+    const n = String(name || '').trim();
+    if (!n) return false;
+    for (const a of avoidSet) {
+      if (a && (n === a || n.includes(a))) return true;
     }
     return false;
   };
 
-  const isVegetarian = restrictionsTokens.some((t) => /素|素食|vege/i.test(t));
-  const meatKeywords = ['猪', '牛', '羊', '鸡', '鸭', '鱼', '虾', '蟹', '肉', '培根', '香肠', '火腿'];
-  const stapleKeywords = ['米饭', '面', '粥', '粉', '馒头', '包子', '面包', '油条', '饼', '饭', '面条'];
-  // 更偏“面/面食”的关键词（避免误命中“面包”里的“面”）
-  const noodleKeywords = ['面条', '炒面', '拉面', '乌冬', '意面', '米粉', '米线', '粉丝'];
-  // 更偏“米饭/米粥”的关键词
-  const riceKeywords = ['米饭', '炒饭', '盖饭', '粥', '米粥'];
-  const sugaryKeywords = ['奶茶', '可乐', '汽水', '蛋糕', '甜品', '糖', '巧克力', '饼干', '冰淇淋'];
+  if (!plan || typeof plan !== 'object') {
+    return { ok: false, error: '解析结果不是 JSON 对象' };
+  }
 
-  const isStaple = (dish) => containsAny(`${dish?.name || ''} ${dish?.description || ''}`, stapleKeywords);
-  const isNoodle = (dish) => containsAny(`${dish?.name || ''} ${dish?.description || ''}`, noodleKeywords);
-  const isRice = (dish) => containsAny(`${dish?.name || ''} ${dish?.description || ''}`, riceKeywords);
-  const isSugary = (dish) => containsAny(`${dish?.name || ''} ${dish?.description || ''}`, sugaryKeywords);
-
-  const isDishAllowed = (dish) => {
-    const text = `${dish?.name || ''} ${dish?.description || ''}`;
-    if (containsAny(text, hatedTokens)) return false;
-    if (isVegetarian && containsAny(text, meatKeywords)) return false;
-    // 减脂时尽量避免高糖饮料/甜品类
-    if (goal === 'lose' && isSugary(dish)) return false;
-    return true;
-  };
-
-  const scoreDish = (d) => {
-    const calories = Number(d.calories) || 0;
-    const protein = Number(d.protein) || 0;
-    const fat = Number(d.fat) || 0;
-    const carbs = Number(d.carbs) || 0;
-    const proteinDensity = calories > 0 ? protein / calories : 0;
-
-    const hasDiabetes = healthTokens.some((t) => /糖尿病|血糖/i.test(t));
-    const hasHighLipids = healthTokens.some((t) => /高血脂|胆固醇/i.test(t));
-    const hasHypertension = healthTokens.some((t) => /高血压/i.test(t));
-
-    // 健康状态惩罚项（数据库无钠信息，轻量处理）
-    const healthPenalty =
-      (hasDiabetes ? carbs * 0.06 : 0) +
-      (hasHighLipids ? fat * 0.18 : 0) +
-      (hasHypertension ? fat * 0.05 : 0);
-
-    if (goal === 'lose') return proteinDensity * 120 - calories * 0.01 - fat * 0.15;
-    if (goal === 'gain') return proteinDensity * 80 + calories * 0.004 + protein * 0.25 - healthPenalty;
-    if (goal === 'shape') return proteinDensity * 100 - fat * 0.1 + carbs * 0.02 - calories * 0.004 - healthPenalty;
-    return proteinDensity * 90 - calories * 0.006 - fat * 0.08 - healthPenalty;
-  };
-
-  const mealBudget = (mealKey) => mealKey === 'breakfast'
-    ? targetCalories * 0.25
-    : mealKey === 'lunch'
-      ? targetCalories * 0.4
-      : targetCalories * 0.35;
-
-  const pickCombo = (mealKey) => {
-    const budget = mealBudget(mealKey);
-    let candidates = allDishes
-      .filter((d) => d?.name && !avoid.has(d.name) && isDishAllowed(d))
-      .map((d) => ({ ...d, _cal: Number(d.calories) || 0 }))
-      .filter((d) => d._cal > 0);
-
-    // 早餐/午餐/晚餐：优先从对应 category 的菜里挑
-    // 若数据库中该餐段 category 的菜不足，则退回到全量候选，并对“早餐”做额外启发式兜底
-    const mealCategoryCandidates = candidates.filter((d) => d.category === mealKey);
-    if (mealCategoryCandidates.length) {
-      candidates = mealCategoryCandidates;
-    } else if (mealKey === 'breakfast') {
-      // 早餐启发式：优先挑更像“早餐”的名字/描述（当数据库没有严格区分餐段时）
-      const breakfastKeywords = ['粥', '馒头', '包子', '豆浆', '油条', '鸡蛋饼', '面包', '三明治', '麦片', '皮蛋瘦肉粥', '豆浆+油条'];
-      const breakfastHeuristic = candidates.filter((d) => containsAny(`${d?.name || ''} ${d?.description || ''}`, breakfastKeywords));
-      if (breakfastHeuristic.length) candidates = breakfastHeuristic;
+  for (const k of mealKeys) {
+    const block = plan[k];
+    if (!block || typeof block !== 'object') {
+      return { ok: false, error: `缺少餐次 ${k} 或其格式不正确` };
+    }
+    const dishIds = block.dishIds;
+    if (!Array.isArray(dishIds) || dishIds.length === 0) {
+      return { ok: false, error: `${k}.dishIds 必须为非空数组` };
+    }
+    if (typeof block.reason !== 'string' || !block.reason.trim()) {
+      return { ok: false, error: `${k}.reason 必须为非空字符串` };
     }
 
-    if (!candidates.length) return null;
-
-    // 有宏量数据时才按目标评分；否则按热量贴近度来选，避免“全选最低热量”
-    if (hasMacros) {
-      candidates.sort((a, b) => scoreDish(b) - scoreDish(a));
-    }
-
-    const chosen = [];
-    let total = 0;
-
-    // 优先选一份主菜
-    const primaryPool = hasMacros ? candidates.slice(0, Math.min(25, candidates.length)) : candidates.slice(0, Math.min(120, candidates.length));
-    // 减脂也要保证方案可执行，主菜尽量占到单餐预算的一半左右，避免出现“全是 40kcal 青菜”
-    const primaryTarget = budget * 0.55;
-    let primary = primaryPool[0];
-    let bestDist = Math.abs(primary._cal - primaryTarget);
-    for (const d of primaryPool) {
-      const dist = Math.abs(d._cal - primaryTarget);
-      if (dist < bestDist) {
-        bestDist = dist;
-        primary = d;
+    const seenLocal = new Set();
+    for (const rawId of dishIds) {
+      const sid = String(rawId ?? '').trim();
+      if (!sid) {
+        return { ok: false, error: `${k}.dishIds 中存在空 id` };
+      }
+      if (!dishMap.has(sid)) {
+        return { ok: false, error: `未知 dishId「${sid}」，只能从候选列表中选择` };
+      }
+      if (seenLocal.has(sid)) {
+        return { ok: false, error: `同一餐「${k}」内 dishId 重复：${sid}` };
+      }
+      seenLocal.add(sid);
+      const dish = dishMap.get(sid);
+      if (nameHitsAvoid(dish.name)) {
+        return { ok: false, error: `菜品「${dish.name}」命中忌口/避免列表` };
       }
     }
-    chosen.push(primary);
-    total += primary._cal;
-    avoid.add(primary.name);
+  }
 
-    // 如果减脂，主食更克制；增肌/维持可更容易补主食凑热量
-    const wantStaple = goal !== 'lose';
-
-    const tryAdd = (filterFn) => {
-      const remain = Math.max(0, budget - total);
-      const local = candidates
-        .filter((d) => !avoid.has(d.name) && filterFn(d))
-        .slice()
-        .sort((a, b) => hasMacros ? (scoreDish(b) - scoreDish(a)) : 0);
-      if (!local.length) return false;
-      // 在候选里选一个更接近单餐预算的（无宏量数据时更依赖热量贴近度）
-      const top = hasMacros ? local.slice(0, Math.min(12, local.length)) : local.slice(0, Math.min(80, local.length));
-      let best = null;
-      let bestDist = Infinity;
-      for (const d of top) {
-        const dist = Math.abs((total + d._cal) - budget);
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = d;
-        }
-      }
-      if (!best) return false;
-      chosen.push(best);
-      total += best._cal;
-      avoid.add(best.name);
-      return true;
-    };
-
-    // 第二道：尽量让总热量贴近预算；优先非主食
-    tryAdd((d) => !isStaple(d));
-
-    // 第三道：如果还差很多，增肌/维持优先补主食，减脂则优先补低能量的菜
-    const lowGap = total < budget * 0.85;
-    if (lowGap) {
-      if (wantStaple) {
-        tryAdd((d) => isStaple(d));
-      } else {
-        // 减脂依然需要接近目标热量；若差太多，允许选择小份主食（如米饭/粥/饼）补足
-        const added = tryAdd((d) => !isStaple(d) && d._cal <= 220);
-        if (!added && total < budget * 0.7) {
-          tryAdd((d) => isStaple(d) && d._cal <= 260);
-        }
-      }
+  const used = [];
+  for (const k of mealKeys) {
+    for (const rawId of plan[k].dishIds) {
+      used.push(String(rawId).trim());
     }
+  }
+  const cnt = {};
+  for (const id of used) {
+    cnt[id] = (cnt[id] || 0) + 1;
+  }
+  const dup = Object.keys(cnt).filter((id) => cnt[id] > 1);
+  if (dup.length) {
+    return { ok: false, error: `三餐重复选用同一菜品（dishId）：${dup.join('、')}` };
+  }
 
-    // 若仍偏离，允许再补 1 道（最多 4 道），但不要离谱
-    if (chosen.length < 4 && Math.abs(total - budget) > budget * 0.25) {
-      tryAdd(() => true);
-    }
-
-    // 午餐/晚餐强制有主食：
-    // - 若已经有“面”（noodle），可不补米饭
-    // - 若没有面：必须补“米饭/粥”（rice），并计入热量（total 会更新）
-    if (mealKey === 'lunch' || mealKey === 'dinner') {
-      const hasNoodle = chosen.some((d) => isNoodle(d));
-      const hasRice = chosen.some((d) => isRice(d));
-
-      if (!hasNoodle && !hasRice) {
-        if (chosen.length < 5) {
-          const addedRice = tryAdd((d) => isRice(d));
-          // 如果没找到 rice 关键词菜，则退化为任意主食
-          if (!addedRice) {
-            tryAdd((d) => isStaple(d));
-          }
-        } else if (chosen.length >= 5) {
-          // chosen 已经很满时，用“替换”方式塞入米饭（尽量贴近预算）
-          const riceCandidates = candidates.filter((d) => !avoid.has(d.name) && isRice(d));
-          const stapleCandidates = candidates.filter((d) => !avoid.has(d.name) && isStaple(d));
-          const pool = riceCandidates.length ? riceCandidates : stapleCandidates;
-          if (pool.length) {
-            // 取一小段候选即可（避免 O(n^2) 太大）
-            const topPool = hasMacros ? pool.slice().sort((a, b) => scoreDish(b) - scoreDish(a)).slice(0, 10) : pool.slice(0, 10);
-            let best = null;
-            let bestIdx = -1;
-            let bestDist = Infinity;
-            for (const rc of topPool) {
-              for (let i = 0; i < chosen.length; i++) {
-                const newTotal = total - chosen[i]._cal + rc._cal;
-                const dist = Math.abs(newTotal - budget);
-                if (dist < bestDist) {
-                  bestDist = dist;
-                  best = rc;
-                  bestIdx = i;
-                }
-              }
-            }
-            if (best && bestIdx >= 0) {
-              total = total - chosen[bestIdx]._cal + best._cal;
-              chosen[bestIdx] = best;
-            }
-          }
-        }
-      }
-    }
-
-    const goalLabel = goal === 'lose' ? '减脂' : goal === 'gain' ? '增肌' : goal === 'shape' ? '塑形' : '维持';
-    const name = chosen.map((c) => c.name).join(' + ');
-    const descParts = chosen.map((c) => {
-      const detail = `${c.name}（${Number(c.calories) || 0}kcal）${c.description ? `：${c.description}` : ''}`;
-      return detail;
-    });
-    const dishNames = chosen.map((c) => c.name).filter(Boolean);
-    // 返回“真实的 category 字段”（用于右上角显示“窗口/类别”）
-    const category = chosen?.[0]?.category || mealKey;
-    return {
-      name,
-      calories: Math.round(total),
-      desc: `按目标：${goalLabel}。包含：${descParts.join('；')}`,
-      category,
-      // 用于“换一批推荐”的去重：存储组成该餐的真实菜品名
-      dishNames,
-    };
-  };
-
-  const breakfast = pickCombo('breakfast');
-  const lunch = pickCombo('lunch');
-  const dinner = pickCombo('dinner');
-  if (!breakfast || !lunch || !dinner) return null;
-
-  return { breakfast, lunch, dinner };
+  return { ok: true };
 }
+
+/**
+ * 按 dishIds 从数据库映射累加营养字段并生成与现有前端兼容的三餐结构
+ */
+function hydrateDishIdPlan(plan, dishMap) {
+  const mealKeys = ['breakfast', 'lunch', 'dinner'];
+  const out = {};
+  for (const k of mealKeys) {
+    const dishIds = plan[k].dishIds.map((id) => String(id).trim());
+    const dishes = dishIds.map((id) => dishMap.get(id)).filter(Boolean);
+    let calories = 0;
+    let protein = 0;
+    let carbs = 0;
+    let fat = 0;
+    for (const d of dishes) {
+      calories += Number(d.calories) || 0;
+      protein += Number(d.protein) || 0;
+      carbs += Number(d.carbs) || 0;
+      fat += Number(d.fat) || 0;
+    }
+    const dishNames = dishes.map((d) => d.name);
+    const name = dishNames.join(' + ');
+    const reason = typeof plan[k].reason === 'string' ? plan[k].reason.trim() : '';
+    const detailParts = dishes.map((d) => {
+      const c = Number(d.calories) || 0;
+      return `${d.name}（${c}kcal）`;
+    });
+    const desc = `${reason}；包含：${detailParts.join('；')}`;
+    out[k] = {
+      name,
+      calories: Math.round(calories),
+      protein: Number(protein.toFixed(1)),
+      carbs: Number(carbs.toFixed(1)),
+      fat: Number(fat.toFixed(1)),
+      desc,
+      dishNames,
+      dishIds,
+      source: 'canteen_db_llm',
+      category: dishes[0]?.category,
+    };
+  }
+  return out;
+}
+
+function buildSzuSouthAiUserPrompt({
+  basePrompt,
+  candidatesPayload,
+  mergedProfile,
+  targets,
+  mergedAvoidList,
+  goalLabel,
+}) {
+  const targetCal = Number(targets?.calories) || 1800;
+  const avoidLine = mergedAvoidList.length ? mergedAvoidList.join('、') : '无';
+  return (
+    `${basePrompt}\n\n` +
+    `你是高校食堂营养配餐助手。你只能从下方「候选菜品」的 id（即 dishId）中选择；禁止编造候选列表之外的菜品、id、热量或营养素。\n\n` +
+    `【候选菜品】（JSON 数组；每条含 id/name/calories/protein/carbs/fat/category/description；输出中的 dishIds 必须逐一对应下列对象的 id 字段）\n` +
+    `${candidatesPayload}\n\n` +
+    `【每日目标热量】约 ${targetCal} kcal（三餐可按约 25% / 40% / 35% 分配，可微调）。\n` +
+    `【用户饮食目标】${goalLabel}（请在每餐 reason 中体现该目标与选菜逻辑）。\n` +
+    `【忌口/避免菜名】${avoidLine}\n\n` +
+    `【权威用户档案（服务器侧；如与上文冲突以此为准）】\n${JSON.stringify(mergedProfile)}\n\n` +
+    `输出要求：只输出一个 JSON 对象，不要 Markdown，不要代码块，不要在 JSON 外输出任何文字。\n` +
+    `结构必须为：\n` +
+    `{"breakfast":{"dishIds":["…"],"reason":"…"},"lunch":{"dishIds":["…"],"reason":"…"},"dinner":{"dishIds":["…"],"reason":"…"}}\n` +
+    `规则：\n` +
+    `1) dishIds 中每一项必须是上表「候选菜品」中某条的 id，禁止使用候选之外的 id。\n` +
+    `2) 禁止在 JSON 中自行输出每餐或菜品的 calories、protein、carbs、fat；服务器仅根据你所选 id 从数据库汇总。\n` +
+    `3) 每餐 dishIds 至少含 1 个 id；同一餐内不得重复同一 id。\n` +
+    `4) 同一 dishId 在早餐/午餐/晚餐中全天最多出现一次（避免三餐重复同一道菜）。\n` +
+    `5) reason 用简短中文说明选菜理由，并结合用户目标（减脂/增肌/维持/塑形）。\n`
+  );
+}
+
+/**
+ * 多智能体协同（服务端分层，路由仍集中在 index.js）：
+ * - vision + 权威成分表：/api/ai/scan（图像识别 → 营养数值纠偏）
+ * - 食堂组合优化：./agents/canteenPlanner.js（数据库约束下的三餐/单餐组合）
+ * - 食堂 LLM 候选约束：/api/ai/plan + selectedCanteen=szu_south_ai（仅选 dishId，营养服务端回填）
+ * - 自然语言配餐：本文件 /api/ai/plan 中豆包 JSON 生成 + 校验
+ */
 
 // base64 图片会比原图体积大不少，10mb 容易在手机拍照时触顶导致识别失败
 app.use(express.json({ limit: '25mb' }));
@@ -844,15 +795,157 @@ app.post('/api/ai/scan', async (req, res) => {
 
 // 生成三餐方案：传入 prompt、selectedCanteen；深大食堂时从 Supabase 拉取菜品并注入 prompt
 app.post('/api/ai/plan', async (req, res) => {
-  if (!doubaoApiKey) {
-    return res.status(503).json({ error: 'AI 服务未配置 DOUBAO_API_KEY' });
-  }
   try {
-    const { prompt, selectedCanteen, profile, targets, avoidNames } = req.body;
+    const { prompt, selectedCanteen, profile, targets, avoidNames, refreshMealKey, fixedMeals } = req.body;
     if (!prompt) {
       return res.status(400).json({ error: '缺少 prompt' });
     }
+    /**
+     * 分支与环境变量（本路由）：
+     * - selectedCanteen === 'szu_south'：仅 planFromCanteenDishes；依赖 SUPABASE_URL + SUPABASE_ANON_KEY；不要求 DOUBAO_API_KEY。
+     * - selectedCanteen === 'szu_south_ai'：豆包 + 食堂候选；依赖 DOUBAO_API_KEY、SUPABASE_URL、SUPABASE_ANON_KEY。
+     * - selectedCanteen === 'none' 或其它：通用豆包 JSON；依赖 DOUBAO_API_KEY；可选 Authorization Bearer + Supabase 以合并云端 user_profiles。
+     */
+    const needsDoubao = selectedCanteen !== 'szu_south';
+    if (needsDoubao && !doubaoApiKey) {
+      return res.status(503).json({ error: 'AI 服务未配置 DOUBAO_API_KEY' });
+    }
     const mergedProfile = mergeProfiles(await loadUserProfileFromDb(req), profile);
+
+    const mealKeys = ['breakfast', 'lunch', 'dinner'];
+    const mealLabel = { breakfast: '早餐', lunch: '午餐', dinner: '晚餐' };
+
+    const mergeAvoidFromRequest = () => {
+      const raw = Array.isArray(avoidNames) ? avoidNames : [];
+      const declined = Array.isArray(mergedProfile?.declinedDishNames) ? mergedProfile.declinedDishNames : [];
+      return [...new Set([
+        ...raw.map((s) => String(s || '').trim()).filter(Boolean),
+        ...declined.map((s) => String(s || '').trim()).filter(Boolean),
+      ])];
+    };
+    const mergedAvoidList = mergeAvoidFromRequest();
+
+    const validateSingleMealRefresh = () => {
+      if (!refreshMealKey || !mealKeys.includes(refreshMealKey)) return { ok: true };
+      if (!fixedMeals || typeof fixedMeals !== 'object') {
+        return { ok: false, error: '单餐换一批需要同时上传 fixedMeals（其余两餐）' };
+      }
+      for (const k of mealKeys) {
+        if (k === refreshMealKey) continue;
+        const fm = fixedMeals[k];
+        if (!fm || typeof fm !== 'object' || typeof fm.name !== 'string' || !fm.name.trim()) {
+          return { ok: false, error: '单餐换一批需要其余两餐的完整 name/calories/desc' };
+        }
+        const cals = Number(fm.calories);
+        if (!Number.isFinite(cals) || cals <= 0) {
+          return { ok: false, error: '单餐换一批需要其余两餐的有效热量' };
+        }
+      }
+      return { ok: true };
+    };
+    const refreshCheck = validateSingleMealRefresh();
+    if (!refreshCheck.ok) {
+      return res.status(400).json({ error: refreshCheck.error || '参数错误' });
+    }
+
+    if (selectedCanteen === 'szu_south_ai' && refreshMealKey) {
+      return res.status(400).json({ error: 'szu_south_ai 暂不支持单餐换一批，请重新生成全天三餐' });
+    }
+
+    if (selectedCanteen === 'szu_south_ai' && !supabase) {
+      return res.status(503).json({ error: '未配置 SUPABASE_ANON_KEY，无法从深大食堂数据库挑选菜品' });
+    }
+
+    // 深大食堂 + LLM：仅从候选 dishId 选菜，营养由数据库回填
+    if (selectedCanteen === 'szu_south_ai') {
+      let dishes;
+      try {
+        dishes = await getCanteenDishes('szu_south');
+      } catch (e) {
+        return res.status(502).json({ error: e?.message || '无法连接食堂数据库' });
+      }
+      if (!dishes.length) {
+        return res.status(503).json({ error: '深大食堂数据库暂无菜品数据（canteen_dishes 为空）' });
+      }
+
+      const dishMap = buildDishMapFromDishes(dishes);
+      const candidatesPayload = JSON.stringify(
+        Array.from(dishMap.values()).map(
+          ({ id, name, calories, protein, carbs, fat, category, description }) => ({
+            id,
+            name,
+            calories,
+            protein,
+            carbs,
+            fat,
+            category,
+            description,
+          })
+        )
+      );
+      const goalLabel = goalLabelFromProfile(mergedProfile);
+      const baseAiPrompt = buildSzuSouthAiUserPrompt({
+        basePrompt: prompt,
+        candidatesPayload,
+        mergedProfile,
+        targets,
+        mergedAvoidList,
+        goalLabel,
+      });
+
+      const parseDishPlan = (data) => {
+        try {
+          const rawText = extractDoubaoText(data);
+          const jsonStr = extractJsonFromText(rawText);
+          return JSON.parse(jsonStr || '{}');
+        } catch {
+          return null;
+        }
+      };
+
+      let lastFeedback = '';
+      let lastText = '';
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const textBlock =
+          attempt === 0
+            ? baseAiPrompt
+            : `${baseAiPrompt}\n\n【上一轮输出存在问题】${lastFeedback}。请重新输出完整 JSON，必须只选择候选列表中的 dishId，遵守每餐至少 1 个 dishId、全天同一 dishId 不得重复、每餐 reason 必填；禁止输出候选之外的 id 或自编营养素。\n` +
+              (lastText ? `（上一轮原文片段：${String(lastText).slice(0, 200)}）\n` : '');
+
+        const body = {
+          model: doubaoModel,
+          text: { format: { type: 'json_object' } },
+          input: [
+            {
+              role: 'user',
+              content: [{ type: 'input_text', text: textBlock }],
+            },
+          ],
+        };
+
+        try {
+          const data = await callDoubaoWithJsonFormatFallback(body);
+          lastText = extractDoubaoText(data) || '';
+          const parsed = parseDishPlan(data);
+          if (parsed == null) {
+            lastFeedback = 'JSON 解析失败';
+            continue;
+          }
+          const v = validateDishIdPlan(parsed, dishMap, mergedAvoidList);
+          if (!v.ok) {
+            lastFeedback = v.error;
+            continue;
+          }
+          const hydrated = hydrateDishIdPlan(parsed, dishMap);
+          return res.json(hydrated);
+        } catch (e) {
+          lastFeedback = e?.message || String(e);
+        }
+      }
+
+      return res.status(502).json({ error: 'AI 返回的方案不符合候选约束，请稍后重试' });
+    }
+
     if (selectedCanteen === 'szu_south' && !supabase) {
       return res.status(503).json({ error: '未配置 SUPABASE_ANON_KEY，无法从深大食堂数据库挑选菜品' });
     }
@@ -868,7 +961,10 @@ app.post('/api/ai/plan', async (req, res) => {
       if (!dishes.length) {
         return res.status(503).json({ error: '深大食堂数据库暂无菜品数据（canteen_dishes 为空）' });
       }
-      const planned = planFromCanteenDishes(dishes, mergedProfile, targets, avoidNames);
+      const plannerOpts = refreshMealKey && mealKeys.includes(refreshMealKey)
+        ? { refreshMealKey, fixedMeals }
+        : {};
+      const planned = planFromCanteenDishes(dishes, mergedProfile, targets, mergedAvoidList, plannerOpts);
       if (!planned) {
         return res.status(502).json({ error: '无法从数据库菜谱中生成方案，请补充菜谱数据后重试' });
       }
@@ -877,11 +973,7 @@ app.post('/api/ai/plan', async (req, res) => {
 
     let finalPrompt = prompt;
     let allowedDishNames = null;
-    const avoidSet = new Set(
-      (Array.isArray(avoidNames) ? avoidNames : [])
-        .map((s) => String(s || '').trim())
-        .filter(Boolean)
-    );
+    const avoidSet = new Set(mergedAvoidList);
     if (selectedCanteen === 'szu_south' && supabase) {
       const dishes = await getCanteenDishes('szu_south');
       if (!dishes.length) {
@@ -914,6 +1006,32 @@ app.post('/api/ai/plan', async (req, res) => {
     finalPrompt += `\n\n【权威用户档案（服务器侧，来自登录用户云端档案；如与上文冲突以此为准）】\n${JSON.stringify(
       mergedProfile
     )}\n`;
+
+    if (refreshMealKey && mealKeys.includes(refreshMealKey) && fixedMeals && typeof fixedMeals === 'object') {
+      const others = mealKeys.filter((k) => k !== refreshMealKey);
+      const fixedSnap = {};
+      let snapOk = true;
+      for (const k of others) {
+        const fm = fixedMeals[k];
+        if (!fm || typeof fm !== 'object') {
+          snapOk = false;
+          break;
+        }
+        fixedSnap[k] = {
+          name: fm.name,
+          calories: fm.calories,
+          desc: fm.desc,
+          category: fm.category,
+          dishNames: fm.dishNames,
+        };
+      }
+      if (snapOk) {
+        finalPrompt += `\n\n【单餐更换】用户只想更换「${mealLabel[refreshMealKey]}」。以下餐次必须保持 name/calories/desc 与下面一致（逐字一致）：\n${JSON.stringify(
+          fixedSnap
+        )}\n请重新生成「${mealLabel[refreshMealKey]}」，并输出完整三餐 JSON（breakfast/lunch/dinner 三个键都要有）。\n`;
+      }
+    }
+
     const body = {
       model: doubaoModel,
       text: { format: { type: 'json_object' } },
@@ -1005,6 +1123,25 @@ app.post('/api/ai/plan', async (req, res) => {
 
     if (!result || !isValidPlan(result)) {
       return res.status(502).json({ error: 'AI 返回的方案不符合要求，请点击“换一批推荐”重试' });
+    }
+
+    if (refreshMealKey && mealKeys.includes(refreshMealKey) && fixedMeals && typeof fixedMeals === 'object') {
+      for (const k of mealKeys) {
+        if (k === refreshMealKey) continue;
+        const fm = fixedMeals[k];
+        if (fm && typeof fm === 'object' && typeof fm.name === 'string' && fm.name.trim()) {
+          result[k] = {
+            name: String(fm.name),
+            calories: Math.round(Number(fm.calories) || 0),
+            desc: typeof fm.desc === 'string' ? fm.desc : '',
+            category: fm.category,
+            dishNames: Array.isArray(fm.dishNames) ? fm.dishNames.filter(Boolean) : undefined,
+          };
+        }
+      }
+      if (!isValidPlan(result)) {
+        return res.status(502).json({ error: 'AI 返回的方案不符合要求，请点击“换一批推荐”重试' });
+      }
     }
 
     res.json(result);
