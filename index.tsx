@@ -37,6 +37,15 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Web 配餐食堂模式：深大南区走后端 szu_south_ai（LLM 仅从数据库候选选 dishId） */
+type CanteenType = 'none' | 'szu_south_ai';
+
+function normalizeCanteenFromCloud(c: unknown): CanteenType | null {
+  if (c === 'none' || c === 'szu_south_ai') return c;
+  if (c === 'szu_south') return 'szu_south_ai';
+  return null;
+}
+
 async function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -110,8 +119,11 @@ const LocalDB = {
   saveWaterIntake: (dateKey: string, amount: number) => {
     localStorage.setItem(`wx_water_${dateKey}`, amount.toString());
   },
-  getSelectedCanteen: () => {
-    return localStorage.getItem('wx_selected_canteen') as any || 'none';
+  getSelectedCanteen: (): CanteenType => {
+    const raw = localStorage.getItem('wx_selected_canteen');
+    if (!raw || raw === 'none') return 'none';
+    if (raw === 'szu_south' || raw === 'szu_south_ai') return 'szu_south_ai';
+    return 'none';
   },
   saveSelectedCanteen: (canteen: string) => {
     localStorage.setItem('wx_selected_canteen', canteen);
@@ -174,7 +186,6 @@ function calcGoalInfoFromProfile(p: UserProfile) {
 // --- 类型定义 ---
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active';
-type CanteenType = 'none' | 'szu_south';
 type PlanMealType = 'breakfast' | 'lunch' | 'dinner';
 
 interface UserProfile {
@@ -237,6 +248,11 @@ interface PlannedMeal {
   desc: string;
   category?: string;
   dishNames?: string[];
+  dishIds?: string[];
+  source?: string;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
 }
 
 type PlannedMeals = Record<PlanMealType, PlannedMeal>;
@@ -639,15 +655,16 @@ const App = () => {
 
     setProfile((prev) => ({ ...prev, ...(remoteProfile as UserProfile) }));
     const c = data.selected_canteen;
-    if (c === 'none' || c === 'szu_south') {
-      setSelectedCanteen(c);
+    const normalizedCant = normalizeCanteenFromCloud(c);
+    if (normalizedCant) {
+      setSelectedCanteen(normalizedCant);
     }
 
     // 拉取后避免立刻把同一份数据再 push 一遍
     try {
       lastPushedProfileSigRef.current = JSON.stringify({
         profile: remoteProfile,
-        selected_canteen: c === 'none' || c === 'szu_south' ? c : undefined,
+        selected_canteen: normalizedCant ?? undefined,
       });
     } catch {
       lastPushedProfileSigRef.current = '';
@@ -1293,7 +1310,25 @@ const App = () => {
       const dishNames = Array.isArray((v as any).dishNames)
         ? (v as any).dishNames.map((x: any) => String(x)).filter(Boolean)
         : undefined;
-      return { name, calories, desc, category, dishNames };
+      const dishIds = Array.isArray((v as any).dishIds)
+        ? (v as any).dishIds.map((x: any) => String(x)).filter(Boolean)
+        : undefined;
+      const source = typeof (v as any).source === 'string' ? (v as any).source : undefined;
+      const protein = Number((v as any).protein);
+      const carbs = Number((v as any).carbs);
+      const fat = Number((v as any).fat);
+      return {
+        name,
+        calories,
+        desc,
+        category,
+        dishNames,
+        dishIds,
+        source,
+        protein: Number.isFinite(protein) ? protein : undefined,
+        carbs: Number.isFinite(carbs) ? carbs : undefined,
+        fat: Number.isFinite(fat) ? fat : undefined,
+      };
     };
     const breakfast = pick('breakfast');
     const lunch = pick('lunch');
@@ -1323,8 +1358,8 @@ const App = () => {
       const normalized = normalizePlannedMeals(data.plan);
       if (!normalized || cancelled) return;
       setPlannedMeals(normalized);
-      const c = data.selected_canteen;
-      if (c === 'none' || c === 'szu_south') setSelectedCanteen(c);
+      const normalizedCant = normalizeCanteenFromCloud(data.selected_canteen);
+      if (normalizedCant) setSelectedCanteen(normalizedCant);
     })();
     return () => {
       cancelled = true;
@@ -1421,14 +1456,14 @@ const App = () => {
 
       const avoidFromCurrent =
         opts?.refresh && plannedMeals
-          ? opts.mealKey
-            ? collectDishNamesFromMeal(plannedMeals[opts.mealKey])
-            : (['breakfast', 'lunch', 'dinner'] as const).flatMap((k) => {
+          ? selectedCanteen === 'szu_south_ai' || !opts?.mealKey
+            ? (['breakfast', 'lunch', 'dinner'] as const).flatMap((k) => {
                 const dm = plannedMeals[k].dishNames;
                 if (Array.isArray(dm) && dm.length) return dm.filter(Boolean);
                 const fallback = plannedMeals[k].name;
                 return fallback ? [fallback] : [];
               })
+            : collectDishNamesFromMeal(plannedMeals[opts.mealKey])
           : [];
 
       const persistedAvoid = (profileForRequest.declinedDishNames || []).slice(-40);
@@ -1443,7 +1478,7 @@ const App = () => {
         .filter(Boolean)
         .join('');
 
-      const context = selectedCanteen === 'szu_south' ? "针对深圳大学南区食堂特色菜。" : "通用家常菜。";
+      const context = selectedCanteen === 'szu_south_ai' ? "针对深圳大学南区食堂特色菜。" : "通用家常菜。";
       const p = profileForRequest;
       const prompt = `你现在是AI营养专家。
       用户档案：
@@ -1466,9 +1501,11 @@ const App = () => {
         targets: { calories: goalInfo.calories },
         avoidNames: mergedAvoid,
         refreshMealKey:
-          opts?.refresh && opts?.mealKey && plannedMeals ? opts.mealKey : undefined,
+          selectedCanteen !== 'szu_south_ai' && opts?.refresh && opts?.mealKey && plannedMeals
+            ? opts.mealKey
+            : undefined,
         fixedMeals:
-          opts?.refresh && opts?.mealKey && plannedMeals
+          selectedCanteen !== 'szu_south_ai' && opts?.refresh && opts?.mealKey && plannedMeals
             ? {
                 breakfast: plannedMeals.breakfast,
                 lunch: plannedMeals.lunch,
@@ -1499,7 +1536,13 @@ const App = () => {
       } catch {
         // ignore
       }
-      showToast(opts?.mealKey ? `${MEAL_LABELS[opts.mealKey]}已换新` : "方案已生成");
+      showToast(
+        opts?.mealKey && selectedCanteen !== 'szu_south_ai'
+          ? `${MEAL_LABELS[opts.mealKey]}已换新`
+          : opts?.refresh
+            ? '方案已更新'
+            : '方案已生成'
+      );
     } catch (e) {
       const msg = (e as any)?.message || "生成失败，请稍后";
       showToast(msg, "error");
@@ -1992,7 +2035,7 @@ const App = () => {
                   <div className="w-9" />
                 </div>
                 <div className="text-[10px] text-gray-400 text-center">
-                  {selectedCanteen === 'szu_south' ? '深大南区食堂（来自数据库菜谱）' : '均衡家常'}
+                  {selectedCanteen === 'szu_south_ai' ? '深大南区（AI 从数据库候选选菜）' : '均衡家常'}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <button
@@ -2115,7 +2158,7 @@ const App = () => {
                       <p className="text-sm font-bold">均衡家常</p>
                       <p className="text-[9px] text-gray-400 mt-1">适合自己下厨或点外卖</p>
                    </button>
-                   <button onClick={() => setSelectedCanteen('szu_south')} className={cn("p-6 rounded-3xl border-2 text-left transition-all", selectedCanteen === 'szu_south' ? 'border-green-600 bg-green-50/30' : 'border-gray-100 bg-white')}>
+                   <button onClick={() => setSelectedCanteen('szu_south_ai')} className={cn("p-6 rounded-3xl border-2 text-left transition-all", selectedCanteen === 'szu_south_ai' ? 'border-green-600 bg-green-50/30' : 'border-gray-100 bg-white')}>
                       <p className="text-2xl mb-2">🎓</p>
                       <p className="text-sm font-bold">深大南区</p>
                       <p className="text-[9px] text-gray-400 mt-1">针对校园窗口菜式优化</p>
