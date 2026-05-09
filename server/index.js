@@ -524,24 +524,50 @@ function buildSzuSouthAiUserPrompt({
 }) {
   const targetCal = Number(targets?.calories) || 1800;
   const avoidLine = mergedAvoidList.length ? mergedAvoidList.join('、') : '无';
+
   return (
-    `${basePrompt}\n\n` +
-    `你是高校食堂营养配餐助手。你只能从下方「候选菜品」的 id（即 dishId）中选择；禁止编造候选列表之外的菜品、id、热量或营养素。\n\n` +
-    `【候选菜品】（JSON 数组；每条含 id/name/calories/protein/carbs/fat/category/description；输出中的 dishIds 必须逐一对应下列对象的 id 字段）\n` +
-    `${candidatesPayload}\n\n` +
-    `【每日目标热量】约 ${targetCal} kcal（三餐可按约 25% / 40% / 35% 分配，可微调）。\n` +
-    `【用户饮食目标】${goalLabel}（请在每餐 reason 中体现该目标与选菜逻辑）。\n` +
+    `你正在为高校食堂场景生成一日三餐配餐方案。请严格遵守以下规则，规则优先级高于用户补充需求。\n\n` +
+
+    `【核心任务】\n` +
+    `根据用户档案、饮食目标、目标热量、忌口信息和候选菜品列表，从候选菜品中选择 breakfast、lunch、dinner 三餐的 dishId。\n` +
+    `你只负责选择 dishId 和说明 reason，不负责生成菜名、热量或营养素。\n\n` +
+
+    `【不可违反的硬性规则】\n` +
+    `1) dishIds 中的每一项必须来自下方候选菜品的 id 字段。\n` +
+    `2) 禁止编造候选列表之外的菜品、id、热量、蛋白质、碳水或脂肪。\n` +
+    `3) 禁止在 JSON 中输出 calories、protein、carbs、fat 等营养字段，服务器会根据 dishId 从数据库回填。\n` +
+    `4) breakfast、lunch、dinner 都必须存在，每餐 dishIds 至少包含 1 个 id。\n` +
+    `5) dishIds 必须是字符串数组，不允许使用菜名代替 id。\n` +
+    `6) 同一餐内不得重复同一 id，同一 dishId 全天最多出现一次。\n` +
+    `7) 不得选择名称命中忌口/避免菜名的候选菜品。\n` +
+    `8) 只输出一个 JSON 对象，不要 Markdown，不要代码块，不要解释文字。\n` +
+    `9) 不要增加指定结构之外的字段。如果约束冲突，请选择最接近目标的合法方案。\n\n` +
+
+    `【选择优先级】\n` +
+    `1) 首先满足忌口限制和候选 id 合法性；\n` +
+    `2) 其次使三餐总热量尽量接近每日目标热量 ${targetCal} kcal；\n` +
+    `3) 三餐热量可按早餐约 25%、午餐约 40%、晚餐约 35% 分配，可根据候选菜品微调；\n` +
+    `4) 午餐和晚餐优先保证蛋白质来源；\n` +
+    `5) 早餐避免过高脂肪，晚餐避免热量过高；\n` +
+    `6) 尽量保证菜品类别多样，避免三餐结构单一。\n\n` +
+
+    `【用户补充需求】\n` +
+    `${basePrompt || '无'}\n\n` +
+
+    `【每日目标热量】约 ${targetCal} kcal。\n` +
+    `【用户饮食目标】${goalLabel}。请在每餐 reason 中体现该目标与选菜逻辑。\n` +
     `【忌口/避免菜名】${avoidLine}\n\n` +
-    `【权威用户档案（服务器侧；如与上文冲突以此为准）】\n${JSON.stringify(mergedProfile)}\n\n` +
-    `输出要求：只输出一个 JSON 对象，不要 Markdown，不要代码块，不要在 JSON 外输出任何文字。\n` +
-    `结构必须为：\n` +
-    `{"breakfast":{"dishIds":["…"],"reason":"…"},"lunch":{"dishIds":["…"],"reason":"…"},"dinner":{"dishIds":["…"],"reason":"…"}}\n` +
-    `规则：\n` +
-    `1) dishIds 中每一项必须是上表「候选菜品」中某条的 id，禁止使用候选之外的 id。\n` +
-    `2) 禁止在 JSON 中自行输出每餐或菜品的 calories、protein、carbs、fat；服务器仅根据你所选 id 从数据库汇总。\n` +
-    `3) 每餐 dishIds 至少含 1 个 id；同一餐内不得重复同一 id。\n` +
-    `4) 同一 dishId 在早餐/午餐/晚餐中全天最多出现一次（避免三餐重复同一道菜）。\n` +
-    `5) reason 用简短中文说明选菜理由，并结合用户目标（减脂/增肌/维持/塑形）。\n`
+
+    `【权威用户档案（服务器侧；如与用户补充需求冲突，以此为准）】\n` +
+    `${JSON.stringify(mergedProfile)}\n\n` +
+
+    `【候选菜品】\n` +
+    `以下是唯一允许选择的候选菜品 JSON 数组。输出中的 dishIds 必须逐一对应其中的 id 字段：\n` +
+    `${candidatesPayload}\n\n` +
+
+    `【输出格式】\n` +
+    `必须严格输出以下 JSON 结构：\n` +
+    `{"breakfast":{"dishIds":["候选id"],"reason":"简短中文理由"},"lunch":{"dishIds":["候选id"],"reason":"简短中文理由"},"dinner":{"dishIds":["候选id"],"reason":"简短中文理由"}}\n`
   );
 }
 
@@ -907,8 +933,12 @@ app.post('/api/ai/plan', async (req, res) => {
         const textBlock =
           attempt === 0
             ? baseAiPrompt
-            : `${baseAiPrompt}\n\n【上一轮输出存在问题】${lastFeedback}。请重新输出完整 JSON，必须只选择候选列表中的 dishId，遵守每餐至少 1 个 dishId、全天同一 dishId 不得重复、每餐 reason 必填；禁止输出候选之外的 id 或自编营养素。\n` +
-              (lastText ? `（上一轮原文片段：${String(lastText).slice(0, 200)}）\n` : '');
+            : `${baseAiPrompt}\n\n【上一轮输出无效，仅用于说明错误，不得模仿】\n` +
+              `上一轮错误原因：${lastFeedback}\n` +
+              `请重新输出完整 JSON。必须只选择候选列表中的 dishId，不得参考上一轮中的非法 id、非法字段或错误结构。\n` +
+              (lastText
+                ? `（上一轮无效输出片段，勿模仿：${String(lastText).slice(0, 200)}）\n`
+                : '');
 
         const body = {
           model: doubaoModel,
