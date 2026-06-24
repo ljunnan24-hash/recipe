@@ -25,3 +25,13 @@ miniprogram/project.private.config.json
 *.njsproj
 *.sln
 *.sw?
+
+# 个人/论文内容，不公开（已从仓库移除，此处防止再次提交）
+migrated_prompt_history/
+docs/thesis-chapter8-testing.md
+docs/benchmark-history.json
+docs/BENCHMARK-LATENCY.md
+docs/command.md
+
+# 环境变量（补漏：*.local 已忽略，裸 .env 一并忽略）
+.env

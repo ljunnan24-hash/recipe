@@ -2616,7 +2616,7 @@ const App = () => {
             rel="noreferrer"
             className="mt-1 text-[9px] leading-none text-gray-400 hover:text-gray-500"
           >
-            粤ICP备2026032930号-1
+            粤ICP备XXXXXXXX号-X
           </a>
         </div>
         <TabItem active={activeTab === 'coach'} onClick={() => setActiveTab('coach')} icon={<MessageSquare className="w-6 h-6" />} label="AI专家" />
@@ -2665,7 +2665,7 @@ const App = () => {
                 <p className="font-bold text-gray-800">3. 医疗免责</p>
                 <p>Recipe 提供的所有建议均为 AI 生成，仅供参考。在做出重大饮食调整或医疗决定前，请咨询专业医生或营养师。</p>
                 <p className="font-bold text-gray-800">4. 微信规范</p>
-                <p>本应用严格遵守微信小程序设计规范与内容安全标准，致力于为您提供绿色、健康的营养管理环境。</p>
+                <p>本应用遵循相关设计规范与内容安全标准，致力于为您提供绿色、健康的营养管理环境。</p>
               </div>
               <button 
                 onClick={() => setShowPrivacy(false)}
