@@ -7,6 +7,13 @@
 [![Vite](https://img.shields.io/badge/Vite-6.2-646cff?logo=vite)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.2-38bdf8?logo=tailwindcss)](https://tailwindcss.com/)
 [![豆包](https://img.shields.io/badge/AI-豆包%20火山方舟-6366f1)](https://www.volcengine.com/product/doubao)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
+**Recipe** 是一个开源的 AI 营养管理应用：拍一张食物照片即可识别热量与营养，由 AI 为你生成一日三餐的均衡食谱，并支持随时和「AI 营养专家」对话咨询。基于 **React 19 + Vite** 构建网页单页应用，搭配 Node 后端（调用豆包大模型 + Supabase）。
+
+> 📦 开源项目，仓库**不包含任何 API 密钥**；AI 与数据库能力需按 [环境变量](#环境变量) 自行配置。
+
+**English summary:** Recipe is an open-source AI nutrition app — snap a photo to recognize a meal's calories & macros, get AI-generated daily meal plans, and chat with an AI nutritionist. Built with React + Vite on the frontend, Node backend (Doubao LLM + Supabase). Bring your own API keys.
 
 ---
 
@@ -37,19 +44,42 @@
 
 ---
 
+## 食堂菜谱（深大南区）
+
+选择「深大南区食堂」场景时，后端从 Supabase 的 `canteen_dishes` 表拉取真实菜品与营养数据，再由豆包 AI 在其中选菜配餐。下表是仓库内置的示例菜谱（建表与数据见 [`server/supabase/schema.sql`](./server/supabase/schema.sql)）：
+
+> 单位：热量 kcal；蛋白质 / 碳水 / 脂肪 g。
+
+| 餐段 | 菜品 | 热量 | 蛋白质 | 碳水 | 脂肪 | 主要食材 |
+|------|------|-----:|-------:|-----:|-----:|------|
+| 早餐 | 皮蛋瘦肉粥 | 120 | 8 | 18 | 3 | 大米、皮蛋、瘦肉 |
+| 早餐 | 豆浆+油条 | 320 | 10 | 38 | 16 | 豆浆、油条 |
+| 早餐 | 鸡蛋饼 | 200 | 8 | 22 | 9 | 面粉、鸡蛋 |
+| 午餐 | 番茄炒蛋 | 180 | 10 | 8 | 12 | 番茄、鸡蛋 |
+| 午餐 | 青椒肉丝 | 220 | 15 | 6 | 16 | 青椒、猪里脊 |
+| 午餐 | 宫保鸡丁 | 280 | 18 | 22 | 14 | 鸡丁、花生、干辣椒 |
+| 午餐 | 清蒸鲈鱼 | 160 | 22 | 2 | 8 | 鲈鱼、姜葱 |
+| 午餐 | 蒜蓉西兰花 | 55 | 4 | 8 | 2 | 西兰花、蒜 |
+| 午餐 | 米饭（两） | 230 | 4 | 50 | 0.5 | 白米饭 |
+| 晚餐 | 红烧肉 | 450 | 18 | 12 | 38 | 五花肉、酱油 |
+| 晚餐 | 酸辣土豆丝 | 95 | 2 | 18 | 3 | 土豆、醋、辣椒 |
+| 晚餐 | 紫菜蛋花汤 | 45 | 4 | 3 | 2 | 紫菜、鸡蛋 |
+
+---
+
 ## 技术架构
 
 - **前端**：React 19 + TypeScript，单页应用，底部 Tab 导航（5 个入口）；通过 `api.ts` 请求后端 `/api`，不持有任何 API Key
 - **后端**：Node.js + Express（`server/index.js`），提供 `/api/ai/scan`、`/api/ai/plan`、`/api/ai/chat`、`/api/ai/report` 等，在服务端调用豆包（火山方舟），**DOUBAO_API_KEY 仅存在于服务端环境变量**
 - **构建与开发**：Vite 6，开发时将 `/api` 代理到后端（前端 4300 → 后端 4301），支持 HMR、路径别名 `@/`
-- **样式**：Tailwind CSS 4（`@tailwindcss/vite`），自定义主题色 `#07c160`（微信绿）、安全区与无滚动条工具类
+- **样式**：Tailwind CSS 4（`@tailwindcss/vite`），自定义主题色 `#07c160`（主题绿）、安全区与无滚动条工具类
 - **动效**：Framer Motion（页面切换、Toast、进度条动画）时，所有 AI 接口返回 503，前端会提示失败
 - **AI**：豆包（火山方舟 Responses API）在后端调用，用于食物识别、配餐生成、聊天；模型由 `DOUBAO_MODEL` / `DOUBAO_VISION_MODEL` 配置
 - **数据持久化**：
   - 未登录用户：浏览器 `localStorage`（用户档案、每日摄入、饮水等，仅存本机）
   - 登录用户（邮箱魔法链接）：Supabase（见下文「Supabase 表说明」）中持久化档案、每日记录、健康报告与最后一次保存的方案
   - **深大食堂菜品**：存于 Supabase（`canteen_dishes` / `restaurant_menu` 表），方案页选择「深大南区」时后端从数据库拉取真实菜品与热量，供 AI 做针对性推荐
-- **配图**：方案页使用 Pollinations.ai 根据餐名生成示例图片（非存储式，仅展示）
+- **配图**：方案页使用本地静态图 `meal-bg.png` 作为占位配图（非存储式，仅展示）
 
 ---
 
@@ -71,11 +101,9 @@ recipe/
 ├── server/
 │   ├── index.js        # 后端服务：/api/health、/api/ai/*、/api/canteen/dishes、/api/ai/report，集成 Supabase
 │   └── supabase/
-│       └── schema.sql  # Supabase 建表与示例数据（canteen_dishes）
-├── miniprogram/        # 微信原生小程序（WXML/WXSS），与同一 Node 后端联调；说明见 docs/MINIPROGRAM_NATIVE.md
+│       └── schema.sql  # Supabase 建表与示例数据（canteen_dishes，见「食堂菜谱」）
 ├── docs/
-│   ├── DEPLOY.md                       # 生产部署、Nginx、备案与上线顺序（含 Supabase 配置与 SQL）
-│   ├── MINIPROGRAM_NATIVE.md
+│   ├── DEPLOY.md                       # 生产部署、Nginx、备案（含 Supabase 配置与 SQL）
 │   ├── supabase-user-profiles.sql      # Supabase 用户档案表 user_profiles
 │   ├── supabase-saved-meal-plan.sql    # Supabase 方案表 user_saved_meal_plan
 │   └── supabase-daily-logs-and-report.sql # Supabase 日志与健康报告表 user_daily_log / user_health_report
@@ -83,7 +111,7 @@ recipe/
 └── README.md           # 本文件
 ```
 
-前端：类型定义、`LocalDB`、通用组件、主应用 `App`、Tab 与弹窗、子组件（EditField、TabItem）均在 `index.tsx`。后端：Express 单文件，依赖 `@google/genai`、`express`、`dotenv`。
+前端：类型定义、`LocalDB`、通用组件、主应用 `App`、Tab 与弹窗、子组件（EditField、TabItem）均在 `index.tsx`。后端：Express 单文件，依赖 `express`、`dotenv`，通过原生 `fetch` 调用豆包（火山方舟 Responses API），无第三方 LLM SDK。
 
 ---
 
@@ -141,7 +169,7 @@ VITE_SUPABASE_ANON_KEY=你的_Supabase_anon_key
 - `DOUBAO_VISION_MODEL`：可选，**拍照识别**使用的模型，须为支持图像输入的模型（如豆包视觉模型）。不填则与 `DOUBAO_MODEL` 相同；若当前模型不支持识图，请在火山方舟控制台查看支持「图片理解」的模型 ID 并填在此处。
 - `SERVER_PORT`：可选，后端监听端口，默认 **4301**（与 `vite.config.ts` 代理一致）。
 
-**生产部署**（腾讯云 Nginx、PM2、备案与小程序域名）：见 **[docs/DEPLOY.md](./docs/DEPLOY.md)**。
+**生产部署**（腾讯云 Nginx、PM2、域名备案）：见 **[docs/DEPLOY.md](./docs/DEPLOY.md)**。
 - `SUPABASE_URL`：Supabase 项目 URL（Project Settings → API → Project URL）。
 - `SUPABASE_ANON_KEY`：Supabase 匿名密钥（Project Settings → API → anon public）。未配置时登录、云端档案与日志不可用，「深大南区」方案也无法从数据库拉取真实菜品。
 
@@ -168,13 +196,16 @@ VITE_SUPABASE_ANON_KEY=你的_Supabase_anon_key
 
 | 命令 | 说明 |
 |------|------|
-| `npm run dev` | 仅启动前端（端口 3000）；需已启动后端，否则 AI 功能不可用 |
-| `npm run server` | 仅启动后端 API（端口 3001），读取 `.env.local` / `.env` 中的 `DOUBAO_API_KEY` 等 |
-| `npm run dev:all` | 同时启动后端与前端（推荐开发使用） |
+| `npm run dev` | 仅启动前端（端口 **4300**）；需已启动后端，否则 AI 功能不可用 |
+| `npm run server` | 仅启动后端 API（端口 **4301**），读取 `.env.local` / `.env` 中的 `DOUBAO_API_KEY` 等 |
+| `npm run dev:all` | 同时启动后端（4301）与前端（4300），前端将 `/api` 代理到后端（推荐开发使用） |
 | `npm run build` | 生产构建，输出到 `dist/` |
 | `npm run preview` | 本地预览 `dist/` 构建结果（生产部署时需单独部署并运行后端） |
 | `npm run lint` | 运行 `tsc --noEmit` 做类型检查（无产物输出） |
-| `npm run benchmark:latency` | 本机 API 时延基准（需先 `npm run server`），详见 [docs/BENCHMARK-LATENCY.md](./docs/BENCHMARK-LATENCY.md) |
+| `npm run benchmark:latency` | 本机 API 时延基准（需先 `npm run server`） |
+| `npm run benchmark:ai-only` | 纯 AI 配餐（通用 JSON）基准测试 |
+| `npm run benchmark:canteen` | 食堂配餐基准测试 |
+| `npm run benchmark:canteen-llm` | 食堂配餐（LLM 版）基准测试 |
 
 ---
 
@@ -190,9 +221,17 @@ VITE_SUPABASE_ANON_KEY=你的_Supabase_anon_key
 
 ## 版本与许可
  
-- **版本**：2.2.0（见应用内「关于 Recipe」）
-- **许可**：当前为私有项目（`"private": true`），未在 README 中声明开源协议；商用或二次开发前请确认授权。
+- **版本**：2.2.0（见应用内「关于 Recipe」与 `package.json`）
+- **许可**：[MIT](./LICENSE) —— 可自由使用、修改、分发，请保留版权声明。
 
 ---
 
-*README 由项目结构与代码审查生成，如有变更请以仓库与代码为准。*
+## 贡献 / Contributing
+
+- 本项目以 MIT 协议开源，欢迎在 [Issues](https://github.com/ljunnan24-hash/recipe/issues) 反馈问题与建议。
+- 目前为个人项目，暂不接受 Pull Request；如有改进想法，欢迎先开 Issue 讨论。
+- Fork 二次开发时，请自行替换仓库中的占位符：豆包 `DOUBAO_API_KEY`、Supabase 配置、生产域名与 ICP 备案号。
+
+---
+
+*README 基于项目结构与代码整理；如与代码不符，请以仓库为准。*

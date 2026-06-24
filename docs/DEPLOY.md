@@ -1,4 +1,4 @@
-# 生产部署与上线顺序（腾讯云轻量 + 域名备案 + 小程序）
+# 生产部署与上线顺序（腾讯云轻量 + 域名备案）
 
 ## 推荐顺序（和你目标的对应关系）
 
@@ -6,7 +6,6 @@
 2. **服务器部署** → 克隆项目、`npm ci`、`npm run build`、配置 `.env`、`pm2` + **Nginx**（可先通过 **公网 IP** 测通，不依赖备案完成）。
 3. **ICP 备案** → 在腾讯云备案流程中完成；备案期间按管局/接入商要求操作（是否可先解析域名以各地规则为准）。
 4. **备案通过后** → 域名 **A 记录** 指向服务器公网 IP，申请 **HTTPS 证书**（Let’s Encrypt 或腾讯云证书），Nginx 启用 443。
-5. **微信小程序** → 公众平台配置 **request 合法域名**（须 HTTPS）；原生小程序修改 `miniprogram/utils/config.js` 里的 `API_BASE` 与合法域名一致。
 
 > **说明**：「先部署再备案」常见做法是：服务器用 IP 或临时方式验证 Node/Nginx；**对外正式用域名 + HTTPS** 往往在备案通过、解析生效之后。具体以腾讯云备案向导为准。
 
@@ -66,7 +65,7 @@ VITE_API_BASE=https://api.example.com/api
 
 ### 第一步：只用 HTTP + 公网 IP（先跑通）
 
-适合：**还没有 HTTPS 证书**、或先用 **IP 访问** 验证。小程序正式环境需要 HTTPS，此步仅用于服务器自检。
+适合：**还没有 HTTPS 证书**、或先用 **IP 访问** 验证。正式对外需要 HTTPS，此步仅用于服务器自检。
 
 1. 安装：`sudo apt install -y nginx`
 2. 新建站点：`sudo nano /etc/nginx/sites-available/recipe`
@@ -114,7 +113,7 @@ sudo systemctl reload nginx
 
 ---
 
-### 第二步：有备案域名 + HTTPS（小程序 / 正式对外）
+### 第二步：有备案域名 + HTTPS（正式对外）
 
 域名解析到本机、证书就绪后，将 `server_name` 换成域名，并配置 `listen 443 ssl` 与证书路径（Certbot 或腾讯云证书）。
 
@@ -164,18 +163,6 @@ pm2 start server/index.js --name recipe-api
 pm2 save
 pm2 startup
 ```
-
----
-
-## 微信小程序
-
-编辑 `miniprogram/utils/config.js`：
-
-```js
-const API_BASE = 'https://your-domain.com/api'
-```
-
-与公众平台 **request 合法域名** 的根一致（不要带路径到「域名」输入框时按微信规则填写）。
 
 ---
 
@@ -244,4 +231,3 @@ nginx -t && systemctl reload nginx
 - [ ] `curl -s https://你的域名/api/health` 返回 JSON `ok`
 - [ ] 浏览器打开 `https://你的域名` 能加载 H5
 - [ ] 生产环境访问 `/api/test-doubao` 应为 **404**（除非临时设置 `ENABLE_DEBUG_ROUTES=1`）
-- [ ] 小程序真机预览前，开发工具可关「不校验域名」仅作本地调试

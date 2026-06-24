@@ -1,7 +1,26 @@
 {
   "name": "recipe",
-  "private": true,
-  "version": "0.0.0",
+  "version": "2.2.0",
+  "description": "私人 AI 营养专家：拍照识别食物营养、AI 智能配餐、实时营养咨询（React + Vite + 豆包 + Supabase）",
+  "license": "MIT",
+  "author": "ljunnan24-hash",
+  "homepage": "https://github.com/ljunnan24-hash/recipe#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ljunnan24-hash/recipe.git"
+  },
+  "keywords": [
+    "react",
+    "vite",
+    "nutrition",
+    "ai",
+    "doubao",
+    "supabase",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
