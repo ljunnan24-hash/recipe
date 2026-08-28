@@ -1,0 +1,1484 @@
+[
+  {
+    "id": 1,
+    "dish_name": "炒米粉",
+    "category": "风味晚餐",
+    "calories": 135,
+    "price": 8,
+    "remark": "主食+油脂"
+  },
+  {
+    "id": 2,
+    "dish_name": "炒河粉",
+    "category": "风味晚餐",
+    "calories": 135,
+    "price": 8,
+    "remark": "主食+油脂"
+  },
+  {
+    "id": 3,
+    "dish_name": "炸鸡柳",
+    "category": "风味晚餐",
+    "calories": 90,
+    "price": 6,
+    "remark": "油炸肉类"
+  },
+  {
+    "id": 4,
+    "dish_name": "咖喱炒饭",
+    "category": "风味晚餐",
+    "calories": 155,
+    "price": 9,
+    "remark": "咖喱酱+主食"
+  },
+  {
+    "id": 5,
+    "dish_name": "咖喱炒面",
+    "category": "风味晚餐",
+    "calories": 155,
+    "price": 9,
+    "remark": "咖喱酱+主食"
+  },
+  {
+    "id": 6,
+    "dish_name": "糯米糍",
+    "category": "风味晚餐",
+    "calories": 115,
+    "price": 3,
+    "remark": "糯米制品"
+  },
+  {
+    "id": 7,
+    "dish_name": "玉米饺",
+    "category": "风味晚餐",
+    "calories": 115,
+    "price": 3,
+    "remark": "蒸制面点"
+  },
+  {
+    "id": 8,
+    "dish_name": "韭菜饺子",
+    "category": "风味晚餐",
+    "calories": 115,
+    "price": 3,
+    "remark": "蒸制面点"
+  },
+  {
+    "id": 9,
+    "dish_name": "生煎包子",
+    "category": "风味晚餐",
+    "calories": 115,
+    "price": 4,
+    "remark": "煎制含底油"
+  },
+  {
+    "id": 10,
+    "dish_name": "煎鸡蛋饼",
+    "category": "风味晚餐",
+    "calories": 165,
+    "price": 5,
+    "remark": "煎制含油脂"
+  },
+  {
+    "id": 11,
+    "dish_name": "煎饺",
+    "category": "风味晚餐",
+    "calories": 100,
+    "price": 4,
+    "remark": "煎制面点"
+  },
+  {
+    "id": 12,
+    "dish_name": "孜然土豆块",
+    "category": "风味晚餐",
+    "calories": 110,
+    "price": 4,
+    "remark": "碳水+油脂"
+  },
+  {
+    "id": 13,
+    "dish_name": "香煎玉米饼",
+    "category": "风味晚餐",
+    "calories": 130,
+    "price": 4,
+    "remark": "煎制面点"
+  },
+  {
+    "id": 14,
+    "dish_name": "葡挞",
+    "category": "风味晚餐",
+    "calories": 190,
+    "price": 5,
+    "remark": "黄油+奶油"
+  },
+  {
+    "id": 15,
+    "dish_name": "酸菜煎饼",
+    "category": "风味晚餐",
+    "calories": 140,
+    "price": 5,
+    "remark": "煎制面点"
+  },
+  {
+    "id": 16,
+    "dish_name": "韭菜饼",
+    "category": "风味晚餐",
+    "calories": 140,
+    "price": 5,
+    "remark": "煎制面点"
+  },
+  {
+    "id": 17,
+    "dish_name": "绿豆糕",
+    "category": "风味晚餐",
+    "calories": 90,
+    "price": 3,
+    "remark": "含糖糕点"
+  },
+  {
+    "id": 18,
+    "dish_name": "红枣糕",
+    "category": "风味晚餐",
+    "calories": 90,
+    "price": 3,
+    "remark": "含糖糕点"
+  },
+  {
+    "id": 19,
+    "dish_name": "炸麦乐鸡块",
+    "category": "风味晚餐",
+    "calories": 165,
+    "price": 6,
+    "remark": "油炸肉类"
+  },
+  {
+    "id": 20,
+    "dish_name": "香芋丝饼",
+    "category": "风味晚餐",
+    "calories": 165,
+    "price": 5,
+    "remark": "油炸面点"
+  },
+  {
+    "id": 21,
+    "dish_name": "春卷",
+    "category": "风味晚餐",
+    "calories": 165,
+    "price": 4,
+    "remark": "油炸面点"
+  },
+  {
+    "id": 22,
+    "dish_name": "马蹄糕",
+    "category": "风味晚餐",
+    "calories": 80,
+    "price": 3,
+    "remark": "蒸制糕点"
+  },
+  {
+    "id": 23,
+    "dish_name": "糯玉米棒",
+    "category": "风味晚餐",
+    "calories": 130,
+    "price": 3,
+    "remark": "粗粮碳水"
+  },
+  {
+    "id": 24,
+    "dish_name": "甜玉米棒",
+    "category": "风味晚餐",
+    "calories": 110,
+    "price": 2,
+    "remark": "粗粮碳水"
+  },
+  {
+    "id": 25,
+    "dish_name": "糯米鸡",
+    "category": "风味晚餐",
+    "calories": 275,
+    "price": 6,
+    "remark": "糯米+肉类"
+  },
+  {
+    "id": 26,
+    "dish_name": "炸鸡腿",
+    "category": "风味晚餐",
+    "calories": 200,
+    "price": 8,
+    "remark": "油炸肉类"
+  },
+  {
+    "id": 27,
+    "dish_name": "炸鸡翅根",
+    "category": "风味晚餐",
+    "calories": 165,
+    "price": 7,
+    "remark": "油炸肉类"
+  },
+  {
+    "id": 28,
+    "dish_name": "桂花糕",
+    "category": "风味晚餐",
+    "calories": 135,
+    "price": 3,
+    "remark": "含糖糕点"
+  },
+  {
+    "id": 29,
+    "dish_name": "炸鸡米花",
+    "category": "风味晚餐",
+    "calories": 225,
+    "price": 7,
+    "remark": "油炸肉类"
+  },
+  {
+    "id": 30,
+    "dish_name": "蒸红薯",
+    "category": "风味晚餐",
+    "calories": 115,
+    "price": 2,
+    "remark": "粗粮蒸煮"
+  },
+  {
+    "id": 31,
+    "dish_name": "炒菜心",
+    "category": "教师窗口",
+    "calories": 40,
+    "price": 4,
+    "remark": "清炒绿叶菜"
+  },
+  {
+    "id": 32,
+    "dish_name": "炒豆芽",
+    "category": "教师窗口",
+    "calories": 40,
+    "price": 4,
+    "remark": "清炒芽菜"
+  },
+  {
+    "id": 33,
+    "dish_name": "清炒红萝卜丝",
+    "category": "教师窗口",
+    "calories": 50,
+    "price": 4,
+    "remark": "清炒根茎菜"
+  },
+  {
+    "id": 34,
+    "dish_name": "西红柿炒蛋",
+    "category": "教师窗口",
+    "calories": 165,
+    "price": 6,
+    "remark": "鸡蛋+素菜"
+  },
+  {
+    "id": 35,
+    "dish_name": "酸辣包菜",
+    "category": "教师窗口",
+    "calories": 200,
+    "price": 6,
+    "remark": "素菜+肉片"
+  },
+  {
+    "id": 36,
+    "dish_name": "花菜炒肉",
+    "category": "教师窗口",
+    "calories": 200,
+    "price": 6,
+    "remark": "素菜+肉片"
+  },
+  {
+    "id": 37,
+    "dish_name": "冬瓜炒肉片",
+    "category": "教师窗口",
+    "calories": 200,
+    "price": 6,
+    "remark": "素菜+肉片"
+  },
+  {
+    "id": 38,
+    "dish_name": "土豆丝炒肉",
+    "category": "教师窗口",
+    "calories": 200,
+    "price": 6,
+    "remark": "素菜+肉片"
+  },
+  {
+    "id": 39,
+    "dish_name": "西兰花炒肉",
+    "category": "教师窗口",
+    "calories": 200,
+    "price": 6,
+    "remark": "素菜+肉片"
+  },
+  {
+    "id": 40,
+    "dish_name": "油豆腐炒肉",
+    "category": "教师窗口",
+    "calories": 215,
+    "price": 7,
+    "remark": "豆制品+肉"
+  },
+  {
+    "id": 41,
+    "dish_name": "黑木耳炒肉",
+    "category": "教师窗口",
+    "calories": 215,
+    "price": 7,
+    "remark": "菌菇+肉"
+  },
+  {
+    "id": 42,
+    "dish_name": "香菇蒸滑鸡",
+    "category": "教师窗口",
+    "calories": 265,
+    "price": 8,
+    "remark": "蒸煮低脂"
+  },
+  {
+    "id": 43,
+    "dish_name": "土豆蒸排骨",
+    "category": "教师窗口",
+    "calories": 265,
+    "price": 8,
+    "remark": "蒸煮低脂"
+  },
+  {
+    "id": 44,
+    "dish_name": "水煮肉片",
+    "category": "教师窗口",
+    "calories": 325,
+    "price": 10,
+    "remark": "高油肉类"
+  },
+  {
+    "id": 45,
+    "dish_name": "三杯鸭",
+    "category": "教师窗口",
+    "calories": 325,
+    "price": 10,
+    "remark": "卤制肉类"
+  },
+  {
+    "id": 46,
+    "dish_name": "口水鸡",
+    "category": "教师窗口",
+    "calories": 325,
+    "price": 10,
+    "remark": "红油肉类"
+  },
+  {
+    "id": 47,
+    "dish_name": "小炒肉",
+    "category": "教师窗口",
+    "calories": 325,
+    "price": 9,
+    "remark": "高油肉类"
+  },
+  {
+    "id": 48,
+    "dish_name": "小炒仔鸡",
+    "category": "教师窗口",
+    "calories": 325,
+    "price": 9,
+    "remark": "炒制肉类"
+  },
+  {
+    "id": 49,
+    "dish_name": "蒜蓉蒸排骨",
+    "category": "教师窗口",
+    "calories": 300,
+    "price": 9,
+    "remark": "蒸煮低脂"
+  },
+  {
+    "id": 50,
+    "dish_name": "酱炒爽肉",
+    "category": "教师窗口",
+    "calories": 320,
+    "price": 9,
+    "remark": "酱炒肉类"
+  },
+  {
+    "id": 51,
+    "dish_name": "水煮鱼",
+    "category": "教师窗口",
+    "calories": 315,
+    "price": 12,
+    "remark": "鱼肉+高油"
+  },
+  {
+    "id": 52,
+    "dish_name": "水煮牛肉",
+    "category": "教师窗口",
+    "calories": 375,
+    "price": 13,
+    "remark": "牛肉+高油"
+  },
+  {
+    "id": 53,
+    "dish_name": "醋溜大白菜",
+    "category": "川湘菜",
+    "calories": 60,
+    "price": 4,
+    "remark": "清炒素菜"
+  },
+  {
+    "id": 54,
+    "dish_name": "酸辣土豆丝",
+    "category": "川湘菜",
+    "calories": 135,
+    "price": 5,
+    "remark": "碳水+素菜"
+  },
+  {
+    "id": 55,
+    "dish_name": "手撕包菜",
+    "category": "川湘菜",
+    "calories": 90,
+    "price": 5,
+    "remark": "清炒素菜"
+  },
+  {
+    "id": 56,
+    "dish_name": "麻婆豆腐",
+    "category": "川湘菜",
+    "calories": 195,
+    "price": 7,
+    "remark": "豆制品+红油"
+  },
+  {
+    "id": 57,
+    "dish_name": "肉末粉条",
+    "category": "川湘菜",
+    "calories": 265,
+    "price": 8,
+    "remark": "碳水+肉末"
+  },
+  {
+    "id": 58,
+    "dish_name": "酸菜鱼",
+    "category": "川湘菜",
+    "calories": 300,
+    "price": 12,
+    "remark": "鱼肉+低脂汤"
+  },
+  {
+    "id": 59,
+    "dish_name": "重庆口水鸡",
+    "category": "川湘菜",
+    "calories": 375,
+    "price": 10,
+    "remark": "红油肉类"
+  },
+  {
+    "id": 60,
+    "dish_name": "川味回锅肉",
+    "category": "川湘菜",
+    "calories": 375,
+    "price": 10,
+    "remark": "高油肉类"
+  },
+  {
+    "id": 61,
+    "dish_name": "川味粉蒸排骨",
+    "category": "川湘菜",
+    "calories": 375,
+    "price": 11,
+    "remark": "高油肉类"
+  },
+  {
+    "id": 62,
+    "dish_name": "麻辣猪耳",
+    "category": "川湘菜",
+    "calories": 375,
+    "price": 10,
+    "remark": "红油肉类"
+  },
+  {
+    "id": 63,
+    "dish_name": "孜然猪肝",
+    "category": "川湘菜",
+    "calories": 265,
+    "price": 8,
+    "remark": "动物内脏"
+  },
+  {
+    "id": 64,
+    "dish_name": "姜葱鸡片",
+    "category": "川湘菜",
+    "calories": 265,
+    "price": 8,
+    "remark": "低脂肉类"
+  },
+  {
+    "id": 65,
+    "dish_name": "酱炒爽肉",
+    "category": "川湘菜",
+    "calories": 315,
+    "price": 9,
+    "remark": "酱炒肉类"
+  },
+  {
+    "id": 66,
+    "dish_name": "泡椒鸭胗",
+    "category": "川湘菜",
+    "calories": 315,
+    "price": 9,
+    "remark": "低脂肉类"
+  },
+  {
+    "id": 67,
+    "dish_name": "麻辣牛肉",
+    "category": "川湘菜",
+    "calories": 400,
+    "price": 12,
+    "remark": "牛肉+红油"
+  },
+  {
+    "id": 68,
+    "dish_name": "风味椒麻鸡",
+    "category": "川湘菜",
+    "calories": 400,
+    "price": 11,
+    "remark": "鸡肉+红油"
+  },
+  {
+    "id": 69,
+    "dish_name": "川湘牛肉",
+    "category": "川湘菜",
+    "calories": 400,
+    "price": 12,
+    "remark": "牛肉+红油"
+  },
+  {
+    "id": 70,
+    "dish_name": "绿豆糖水",
+    "category": "晚餐糖水",
+    "calories": 70,
+    "price": 3,
+    "remark": "低糖糖水"
+  },
+  {
+    "id": 71,
+    "dish_name": "糯米红豆粥",
+    "category": "晚餐糖水",
+    "calories": 165,
+    "price": 4,
+    "remark": "碳水+粗粮"
+  },
+  {
+    "id": 72,
+    "dish_name": "香芋西米露",
+    "category": "晚餐糖水",
+    "calories": 200,
+    "price": 5,
+    "remark": "碳水+甜品"
+  },
+  {
+    "id": 73,
+    "dish_name": "清炒小白菜",
+    "category": "大众素食",
+    "calories": 30,
+    "price": 3,
+    "remark": "清炒绿叶菜"
+  },
+  {
+    "id": 74,
+    "dish_name": "清炒包菜",
+    "category": "大众素食",
+    "calories": 30,
+    "price": 3,
+    "remark": "清炒素菜"
+  },
+  {
+    "id": 75,
+    "dish_name": "清炒冬瓜",
+    "category": "大众素食",
+    "calories": 30,
+    "price": 3,
+    "remark": "清炒瓜类"
+  },
+  {
+    "id": 76,
+    "dish_name": "煮鸡蛋",
+    "category": "大众素食",
+    "calories": 75,
+    "price": 1.5,
+    "remark": "水煮低脂"
+  },
+  {
+    "id": 77,
+    "dish_name": "荷包蛋",
+    "category": "大众素食",
+    "calories": 100,
+    "price": 2,
+    "remark": "煎制高油"
+  },
+  {
+    "id": 78,
+    "dish_name": "卤鸡蛋",
+    "category": "大众素食",
+    "calories": 85,
+    "price": 1.5,
+    "remark": "卤制低脂"
+  },
+  {
+    "id": 79,
+    "dish_name": "茶叶蛋",
+    "category": "大众素食",
+    "calories": 85,
+    "price": 1.5,
+    "remark": "卤制低脂"
+  },
+  {
+    "id": 80,
+    "dish_name": "清炒上海青",
+    "category": "大众素食",
+    "calories": 40,
+    "price": 3,
+    "remark": "清炒绿叶菜"
+  },
+  {
+    "id": 81,
+    "dish_name": "清炒油麦菜",
+    "category": "大众素食",
+    "calories": 40,
+    "price": 3,
+    "remark": "清炒绿叶菜"
+  },
+  {
+    "id": 82,
+    "dish_name": "清炒生菜",
+    "category": "大众素食",
+    "calories": 40,
+    "price": 3,
+    "remark": "清炒绿叶菜"
+  },
+  {
+    "id": 83,
+    "dish_name": "素炒南瓜",
+    "category": "大众素食",
+    "calories": 70,
+    "price": 3,
+    "remark": "蒸煮素菜"
+  },
+  {
+    "id": 84,
+    "dish_name": "蒸水蛋",
+    "category": "大众素食",
+    "calories": 70,
+    "price": 4,
+    "remark": "蒸制低脂"
+  },
+  {
+    "id": 85,
+    "dish_name": "清炒大白菜",
+    "category": "大众素食",
+    "calories": 50,
+    "price": 3,
+    "remark": "清炒素菜"
+  },
+  {
+    "id": 86,
+    "dish_name": "素炒西兰花",
+    "category": "大众素食",
+    "calories": 50,
+    "price": 4,
+    "remark": "清炒素菜"
+  },
+  {
+    "id": 87,
+    "dish_name": "素炒黑木耳",
+    "category": "大众素食",
+    "calories": 50,
+    "price": 4,
+    "remark": "菌菇素菜"
+  },
+  {
+    "id": 88,
+    "dish_name": "素炒海带",
+    "category": "大众素食",
+    "calories": 50,
+    "price": 3,
+    "remark": "海藻类素菜"
+  },
+  {
+    "id": 89,
+    "dish_name": "虎皮尖椒",
+    "category": "大众素食",
+    "calories": 50,
+    "price": 4,
+    "remark": "煎制素菜"
+  },
+  {
+    "id": 90,
+    "dish_name": "炒玉米粒",
+    "category": "大众素食",
+    "calories": 135,
+    "price": 4,
+    "remark": "粗粮素菜"
+  },
+  {
+    "id": 91,
+    "dish_name": "孜然土豆",
+    "category": "大众素食",
+    "calories": 115,
+    "price": 4,
+    "remark": "碳水+素菜"
+  },
+  {
+    "id": 92,
+    "dish_name": "地三鲜",
+    "category": "大众素食",
+    "calories": 195,
+    "price": 6,
+    "remark": "高油素菜"
+  },
+  {
+    "id": 93,
+    "dish_name": "西红柿炒蛋",
+    "category": "大众蛋类",
+    "calories": 175,
+    "price": 6,
+    "remark": "鸡蛋+素菜"
+  },
+  {
+    "id": 94,
+    "dish_name": "干煸豆角",
+    "category": "大众蛋类",
+    "calories": 175,
+    "price": 6,
+    "remark": "鸡蛋+素菜"
+  },
+  {
+    "id": 95,
+    "dish_name": "莴笋炒蛋",
+    "category": "大众蛋类",
+    "calories": 175,
+    "price": 6,
+    "remark": "鸡蛋+素菜"
+  },
+  {
+    "id": 96,
+    "dish_name": "肉沫麻婆豆腐",
+    "category": "大众豆制品",
+    "calories": 225,
+    "price": 7,
+    "remark": "豆制品+肉末"
+  },
+  {
+    "id": 97,
+    "dish_name": "肉沫红烧豆腐",
+    "category": "大众豆制品",
+    "calories": 225,
+    "price": 7,
+    "remark": "豆制品+肉末"
+  },
+  {
+    "id": 98,
+    "dish_name": "蒸蛋饺",
+    "category": "大众豆制品",
+    "calories": 225,
+    "price": 7,
+    "remark": "蒸制蛋制品"
+  },
+  {
+    "id": 99,
+    "dish_name": "韭菜肉片",
+    "category": "大众肉片",
+    "calories": 220,
+    "price": 7,
+    "remark": "素菜+肉片"
+  },
+  {
+    "id": 100,
+    "dish_name": "西芹肉片",
+    "category": "大众肉片",
+    "calories": 220,
+    "price": 7,
+    "remark": "素菜+肉片"
+  },
+  {
+    "id": 101,
+    "dish_name": "鱼香肉丝",
+    "category": "大众肉片",
+    "calories": 220,
+    "price": 8,
+    "remark": "肉丝+素菜"
+  },
+  {
+    "id": 102,
+    "dish_name": "蒸鸡腿",
+    "category": "大众肉片",
+    "calories": 135,
+    "price": 6,
+    "remark": "蒸煮低脂"
+  },
+  {
+    "id": 103,
+    "dish_name": "芥蓝炒肉",
+    "category": "6元小炒",
+    "calories": 240,
+    "price": 6,
+    "remark": "素菜+肉片"
+  },
+  {
+    "id": 104,
+    "dish_name": "蒜苔炒肉",
+    "category": "6元小炒",
+    "calories": 240,
+    "price": 6,
+    "remark": "素菜+肉片"
+  },
+  {
+    "id": 105,
+    "dish_name": "焖鸡",
+    "category": "6元小炒",
+    "calories": 240,
+    "price": 6,
+    "remark": "焖制肉类"
+  },
+  {
+    "id": 106,
+    "dish_name": "炸鸡腿",
+    "category": "6元小炒",
+    "calories": 200,
+    "price": 8,
+    "remark": "油炸肉类"
+  },
+  {
+    "id": 107,
+    "dish_name": "卤鸡腿",
+    "category": "6元小炒",
+    "calories": 165,
+    "price": 7,
+    "remark": "卤制肉类"
+  },
+  {
+    "id": 108,
+    "dish_name": "烤鸡腿",
+    "category": "6元小炒",
+    "calories": 165,
+    "price": 7,
+    "remark": "烤制低脂"
+  },
+  {
+    "id": 109,
+    "dish_name": "炒丸子",
+    "category": "6元小炒",
+    "calories": 265,
+    "price": 7,
+    "remark": "淀粉+肉类"
+  },
+  {
+    "id": 110,
+    "dish_name": "芋头丸子",
+    "category": "6元小炒",
+    "calories": 265,
+    "price": 7,
+    "remark": "淀粉+肉类"
+  },
+  {
+    "id": 111,
+    "dish_name": "蒸肉饼",
+    "category": "6元小炒",
+    "calories": 265,
+    "price": 7,
+    "remark": "蒸制肉类"
+  },
+  {
+    "id": 112,
+    "dish_name": "肉卷",
+    "category": "6元小炒",
+    "calories": 265,
+    "price": 7,
+    "remark": "淀粉+肉类"
+  },
+  {
+    "id": 113,
+    "dish_name": "宫保鸡丁",
+    "category": "7-8元档",
+    "calories": 300,
+    "price": 8,
+    "remark": "鸡肉+素菜"
+  },
+  {
+    "id": 114,
+    "dish_name": "辣子鸡",
+    "category": "7-8元档",
+    "calories": 300,
+    "price": 8,
+    "remark": "高油鸡肉"
+  },
+  {
+    "id": 115,
+    "dish_name": "鸡翅根",
+    "category": "7-8元档",
+    "calories": 300,
+    "price": 8,
+    "remark": "鸡肉类"
+  },
+  {
+    "id": 116,
+    "dish_name": "焖鸭",
+    "category": "7-8元档",
+    "calories": 300,
+    "price": 8,
+    "remark": "焖制肉类"
+  },
+  {
+    "id": 117,
+    "dish_name": "莲藕煲排骨",
+    "category": "7-8元档",
+    "calories": 270,
+    "price": 9,
+    "remark": "蒸煮排骨"
+  },
+  {
+    "id": 118,
+    "dish_name": "土豆蒸排骨",
+    "category": "7-8元档",
+    "calories": 270,
+    "price": 9,
+    "remark": "蒸煮排骨"
+  },
+  {
+    "id": 119,
+    "dish_name": "腐竹焖五花肉",
+    "category": "7-8元档",
+    "calories": 340,
+    "price": 10,
+    "remark": "高油肉类"
+  },
+  {
+    "id": 120,
+    "dish_name": "糖醋里脊",
+    "category": "7-8元档",
+    "calories": 340,
+    "price": 10,
+    "remark": "高糖高油"
+  },
+  {
+    "id": 121,
+    "dish_name": "白粥",
+    "category": "基础早餐",
+    "calories": 35,
+    "price": 1,
+    "remark": "低脂主食"
+  },
+  {
+    "id": 122,
+    "dish_name": "无糖豆浆",
+    "category": "基础早餐",
+    "calories": 50,
+    "price": 2,
+    "remark": "低脂蛋白"
+  },
+  {
+    "id": 123,
+    "dish_name": "炒河粉",
+    "category": "基础早餐",
+    "calories": 135,
+    "price": 6,
+    "remark": "早餐主食"
+  },
+  {
+    "id": 124,
+    "dish_name": "炒米粉",
+    "category": "基础早餐",
+    "calories": 135,
+    "price": 6,
+    "remark": "早餐主食"
+  },
+  {
+    "id": 125,
+    "dish_name": "煎蛋",
+    "category": "基础早餐",
+    "calories": 95,
+    "price": 1.5,
+    "remark": "煎制高油"
+  },
+  {
+    "id": 126,
+    "dish_name": "叉烧包",
+    "category": "基础早餐",
+    "calories": 165,
+    "price": 3,
+    "remark": "甜面点"
+  },
+  {
+    "id": 127,
+    "dish_name": "奶黄包",
+    "category": "基础早餐",
+    "calories": 165,
+    "price": 3,
+    "remark": "甜面点"
+  },
+  {
+    "id": 128,
+    "dish_name": "水饺",
+    "category": "基础早餐",
+    "calories": 190,
+    "price": 4,
+    "remark": "蒸制面点"
+  },
+  {
+    "id": 129,
+    "dish_name": "桂花糕",
+    "category": "基础早餐",
+    "calories": 135,
+    "price": 3,
+    "remark": "含糖糕点"
+  },
+  {
+    "id": 130,
+    "dish_name": "红豆糕",
+    "category": "基础早餐",
+    "calories": 90,
+    "price": 2,
+    "remark": "含糖糕点"
+  },
+  {
+    "id": 131,
+    "dish_name": "红枣糕",
+    "category": "基础早餐",
+    "calories": 90,
+    "price": 2,
+    "remark": "含糖糕点"
+  },
+  {
+    "id": 132,
+    "dish_name": "马拉糕",
+    "category": "基础早餐",
+    "calories": 90,
+    "price": 2,
+    "remark": "蒸制糕点"
+  },
+  {
+    "id": 133,
+    "dish_name": "香芋春卷",
+    "category": "基础早餐",
+    "calories": 165,
+    "price": 4,
+    "remark": "油炸面点"
+  },
+  {
+    "id": 134,
+    "dish_name": "芋丝饼",
+    "category": "基础早餐",
+    "calories": 165,
+    "price": 4,
+    "remark": "油炸面点"
+  },
+  {
+    "id": 135,
+    "dish_name": "红薯",
+    "category": "基础早餐",
+    "calories": 115,
+    "price": 1,
+    "remark": "粗粮蒸煮"
+  },
+  {
+    "id": 136,
+    "dish_name": "瘦肉肠粉+蛋",
+    "category": "肠粉早餐",
+    "calories": 165,
+    "price": 7,
+    "remark": "蒸制低脂"
+  },
+  {
+    "id": 137,
+    "dish_name": "烧鸭套餐",
+    "category": "烧腊套餐",
+    "calories": 425,
+    "price": 15,
+    "remark": "含米饭+青菜"
+  },
+  {
+    "id": 138,
+    "dish_name": "烤鸭腿套餐",
+    "category": "烧腊套餐",
+    "calories": 425,
+    "price": 16,
+    "remark": "含米饭+青菜"
+  },
+  {
+    "id": 139,
+    "dish_name": "烤鸡套餐",
+    "category": "烧腊套餐",
+    "calories": 375,
+    "price": 14,
+    "remark": "含米饭+青菜"
+  },
+  {
+    "id": 140,
+    "dish_name": "白切鸡套餐",
+    "category": "烧腊套餐",
+    "calories": 375,
+    "price": 14,
+    "remark": "含米饭+青菜"
+  },
+  {
+    "id": 141,
+    "dish_name": "梅肉大碗面",
+    "category": "大碗面/粉",
+    "calories": 475,
+    "price": 12,
+    "remark": "主食+肉类"
+  },
+  {
+    "id": 142,
+    "dish_name": "云吞大碗面",
+    "category": "大碗面/粉",
+    "calories": 505,
+    "price": 13,
+    "remark": "主食+肉类"
+  },
+  {
+    "id": 143,
+    "dish_name": "烧鸡大碗面",
+    "category": "大碗面/粉",
+    "calories": 525,
+    "price": 14,
+    "remark": "主食+肉类"
+  },
+  {
+    "id": 144,
+    "dish_name": "肥肠大碗面",
+    "category": "大碗面/粉",
+    "calories": 575,
+    "price": 15,
+    "remark": "高油肉类"
+  },
+  {
+    "id": 145,
+    "dish_name": "卤味牛肉大碗面",
+    "category": "大碗面/粉",
+    "calories": 500,
+    "price": 14,
+    "remark": "低脂肉类"
+  },
+  {
+    "id": 146,
+    "dish_name": "奥尔良鸡扒",
+    "category": "炸酱盖浇面",
+    "calories": 165,
+    "price": 8,
+    "remark": "煎制肉类"
+  },
+  {
+    "id": 147,
+    "dish_name": "黑椒猪扒",
+    "category": "炸酱盖浇面",
+    "calories": 215,
+    "price": 10,
+    "remark": "高油肉类"
+  },
+  {
+    "id": 148,
+    "dish_name": "炸酱面",
+    "category": "炸酱盖浇面",
+    "calories": 375,
+    "price": 10,
+    "remark": "高油主食"
+  },
+  {
+    "id": 149,
+    "dish_name": "西红柿牛腩面",
+    "category": "炸酱盖浇面",
+    "calories": 425,
+    "price": 12,
+    "remark": "主食+肉类"
+  },
+  {
+    "id": 150,
+    "dish_name": "麻辣仔鸡拌面",
+    "category": "炸酱盖浇面",
+    "calories": 475,
+    "price": 12,
+    "remark": "高油主食"
+  },
+  {
+    "id": 151,
+    "dish_name": "黑椒牛肉拌面",
+    "category": "炸酱盖浇面",
+    "calories": 505,
+    "price": 13,
+    "remark": "高油主食"
+  },
+  {
+    "id": 152,
+    "dish_name": "烤鸡腿",
+    "category": "炸酱盖浇面",
+    "calories": 165,
+    "price": 7,
+    "remark": "烤制低脂"
+  },
+  {
+    "id": 153,
+    "dish_name": "热狗肠",
+    "category": "炸酱盖浇面",
+    "calories": 165,
+    "price": 3,
+    "remark": "加工肉类"
+  },
+  {
+    "id": 154,
+    "dish_name": "加面",
+    "category": "炸酱盖浇面",
+    "calories": 175,
+    "price": 2,
+    "remark": "额外主食"
+  },
+  {
+    "id": 155,
+    "dish_name": "韭菜猪肉水饺",
+    "category": "抄手/水饺",
+    "calories": 375,
+    "price": 10,
+    "remark": "主食+肉类"
+  },
+  {
+    "id": 156,
+    "dish_name": "白菜猪肉水饺",
+    "category": "抄手/水饺",
+    "calories": 375,
+    "price": 10,
+    "remark": "主食+肉类"
+  },
+  {
+    "id": 157,
+    "dish_name": "红油抄手",
+    "category": "抄手/水饺",
+    "calories": 425,
+    "price": 11,
+    "remark": "高油面点"
+  },
+  {
+    "id": 158,
+    "dish_name": "清汤抄手",
+    "category": "抄手/水饺",
+    "calories": 325,
+    "price": 10,
+    "remark": "低脂面点"
+  },
+  {
+    "id": 159,
+    "dish_name": "金针菇抄手",
+    "category": "抄手/水饺",
+    "calories": 445,
+    "price": 12,
+    "remark": "素菜+面点"
+  },
+  {
+    "id": 160,
+    "dish_name": "瘦肉抄手",
+    "category": "抄手/水饺",
+    "calories": 400,
+    "price": 11,
+    "remark": "低脂肉类"
+  },
+  {
+    "id": 161,
+    "dish_name": "酸菜五花肉煲",
+    "category": "煲仔菜",
+    "calories": 375,
+    "price": 12,
+    "remark": "高油肉类"
+  },
+  {
+    "id": 162,
+    "dish_name": "沙姜鸡煲",
+    "category": "煲仔菜",
+    "calories": 325,
+    "price": 11,
+    "remark": "低脂肉类"
+  },
+  {
+    "id": 163,
+    "dish_name": "萝卜牛腩煲",
+    "category": "煲仔菜",
+    "calories": 405,
+    "price": 13,
+    "remark": "肉类+素菜"
+  },
+  {
+    "id": 164,
+    "dish_name": "红烧排骨煲",
+    "category": "煲仔菜",
+    "calories": 405,
+    "price": 13,
+    "remark": "肉类+素菜"
+  },
+  {
+    "id": 165,
+    "dish_name": "港式羊肉煲",
+    "category": "煲仔菜",
+    "calories": 475,
+    "price": 18,
+    "remark": "高油肉类"
+  },
+  {
+    "id": 166,
+    "dish_name": "辣子鸡套餐",
+    "category": "特色小炒",
+    "calories": 375,
+    "price": 12,
+    "remark": "含米饭"
+  },
+  {
+    "id": 167,
+    "dish_name": "爆炒茄子套餐",
+    "category": "特色小炒",
+    "calories": 375,
+    "price": 11,
+    "remark": "含米饭"
+  },
+  {
+    "id": 168,
+    "dish_name": "鱼香肉丝套餐",
+    "category": "特色小炒",
+    "calories": 375,
+    "price": 11,
+    "remark": "含米饭"
+  },
+  {
+    "id": 169,
+    "dish_name": "家常豆腐套餐",
+    "category": "特色小炒",
+    "calories": 375,
+    "price": 11,
+    "remark": "含米饭"
+  },
+  {
+    "id": 170,
+    "dish_name": "小炒肉套餐",
+    "category": "特色小炒",
+    "calories": 375,
+    "price": 12,
+    "remark": "含米饭"
+  },
+  {
+    "id": 171,
+    "dish_name": "滑蛋瘦肉套餐",
+    "category": "特色小炒",
+    "calories": 325,
+    "price": 11,
+    "remark": "含米饭"
+  },
+  {
+    "id": 172,
+    "dish_name": "野山椒炒牛肉套餐",
+    "category": "特色小炒",
+    "calories": 425,
+    "price": 14,
+    "remark": "含米饭"
+  },
+  {
+    "id": 173,
+    "dish_name": "咖喱牛肉套餐",
+    "category": "特色小炒",
+    "calories": 425,
+    "price": 14,
+    "remark": "含米饭"
+  },
+  {
+    "id": 174,
+    "dish_name": "爆炒牛肉套餐",
+    "category": "特色小炒",
+    "calories": 425,
+    "price": 14,
+    "remark": "含米饭"
+  },
+  {
+    "id": 175,
+    "dish_name": "滑蛋牛肉套餐",
+    "category": "特色小炒",
+    "calories": 425,
+    "price": 14,
+    "remark": "含米饭"
+  },
+  {
+    "id": 176,
+    "dish_name": "瘦肉炒米粉",
+    "category": "现炒粉面",
+    "calories": 325,
+    "price": 8,
+    "remark": "主食+肉类"
+  },
+  {
+    "id": 177,
+    "dish_name": "瘦肉炒河粉",
+    "category": "现炒粉面",
+    "calories": 325,
+    "price": 8,
+    "remark": "主食+肉类"
+  },
+  {
+    "id": 178,
+    "dish_name": "瘦肉炒面",
+    "category": "现炒粉面",
+    "calories": 325,
+    "price": 8,
+    "remark": "主食+肉类"
+  },
+  {
+    "id": 179,
+    "dish_name": "牛肉炒米粉",
+    "category": "现炒粉面",
+    "calories": 345,
+    "price": 10,
+    "remark": "主食+肉类"
+  },
+  {
+    "id": 180,
+    "dish_name": "牛肉炒河粉",
+    "category": "现炒粉面",
+    "calories": 345,
+    "price": 10,
+    "remark": "主食+肉类"
+  },
+  {
+    "id": 181,
+    "dish_name": "牛肉炒面",
+    "category": "现炒粉面",
+    "calories": 345,
+    "price": 10,
+    "remark": "主食+肉类"
+  },
+  {
+    "id": 182,
+    "dish_name": "黑椒猪肉炒乌冬面",
+    "category": "现炒粉面",
+    "calories": 405,
+    "price": 11,
+    "remark": "高碳主食"
+  },
+  {
+    "id": 183,
+    "dish_name": "黑椒牛肉炒乌冬面",
+    "category": "现炒粉面",
+    "calories": 425,
+    "price": 12,
+    "remark": "高碳主食"
+  },
+  {
+    "id": 184,
+    "dish_name": "加鸡蛋",
+    "category": "现炒粉面",
+    "calories": 75,
+    "price": 1,
+    "remark": "水煮低脂"
+  },
+  {
+    "id": 185,
+    "dish_name": "加粉/面",
+    "category": "现炒粉面",
+    "calories": 175,
+    "price": 2,
+    "remark": "额外主食"
+  }
+]
+
+

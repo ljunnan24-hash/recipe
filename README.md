@@ -11,15 +11,18 @@
 
 **Recipe** 是一个开源的 AI 营养管理应用：拍一张食物照片即可识别热量与营养，由 AI 为你生成一日三餐的均衡食谱，并支持随时和「AI 营养专家」对话咨询。基于 **React 19 + Vite** 构建网页单页应用，搭配 Node 后端（调用豆包大模型 + Supabase）。
 
+本仓库同时开源 **[2026年深圳大学南区二楼食堂菜谱](./data/2026-szu-south-canteen-2f/)**（菜品来源于深圳大学南区二楼食堂菜单，附 185 条真实菜品数据表；不包含图片或个人数据）。
+
 > 📦 开源项目，仓库**不包含任何 API 密钥**；AI 与数据库能力需按 [环境变量](#环境变量) 自行配置。
 
-**English summary:** Recipe is an open-source AI nutrition app — snap a photo to recognize a meal's calories & macros, get AI-generated daily meal plans, and chat with an AI nutritionist. Built with React + Vite on the frontend, Node backend (Doubao LLM + Supabase). Bring your own API keys.
+**English summary:** Recipe is an open-source AI nutrition app with an open dataset of 185 dishes from the 2026 Shenzhen University South Campus second-floor canteen menu. Built with React + Vite on the frontend, Node backend (Doubao LLM + Supabase). Bring your own API keys.
 
 ---
 
 ## 目录
 
 - [功能概览](#功能概览)
+- [2026年深圳大学南区二楼食堂菜谱](#2026年深圳大学南区二楼食堂菜谱)
 - [技术架构](#技术架构)
 - [项目结构](#项目结构)
 - [环境要求与运行](#环境要求与运行)
@@ -44,26 +47,17 @@
 
 ---
 
-## 食堂菜谱（深大南区）
+## 2026年深圳大学南区二楼食堂菜谱
 
-选择「深大南区食堂」场景时，后端从 Supabase 的 `canteen_dishes` 表拉取真实菜品与营养数据，再由豆包 AI 在其中选菜配餐。下表是仓库内置的示例菜谱（建表与数据见 [`server/supabase/schema.sql`](./server/supabase/schema.sql)）：
+仓库已将 Supabase `public.restaurant_menu` 中的食堂菜单公开数据整理为独立数据集：
 
-> 单位：热量 kcal；蛋白质 / 碳水 / 脂肪 g。
+- **菜品来源**：深圳大学南区二楼食堂菜单；
+- **数据规模**：185 条菜品，包含菜名、窗口/分类、价格、估算热量和备注；
+- **开放格式**：[CSV](./data/2026-szu-south-canteen-2f/menu.csv)、[JSON](./data/2026-szu-south-canteen-2f/menu.json)、[PostgreSQL / Supabase SQL](./data/2026-szu-south-canteen-2f/menu.sql)；
+- **完整说明**：[数据字典、分类统计、导入示例和数据质量检查](./data/2026-szu-south-canteen-2f/README.md)；
+- **数据许可**：[CC BY 4.0](./data/2026-szu-south-canteen-2f/LICENSE.md)。
 
-| 餐段 | 菜品 | 热量 | 蛋白质 | 碳水 | 脂肪 | 主要食材 |
-|------|------|-----:|-------:|-----:|-----:|------|
-| 早餐 | 皮蛋瘦肉粥 | 120 | 8 | 18 | 3 | 大米、皮蛋、瘦肉 |
-| 早餐 | 豆浆+油条 | 320 | 10 | 38 | 16 | 豆浆、油条 |
-| 早餐 | 鸡蛋饼 | 200 | 8 | 22 | 9 | 面粉、鸡蛋 |
-| 午餐 | 番茄炒蛋 | 180 | 10 | 8 | 12 | 番茄、鸡蛋 |
-| 午餐 | 青椒肉丝 | 220 | 15 | 6 | 16 | 青椒、猪里脊 |
-| 午餐 | 宫保鸡丁 | 280 | 18 | 22 | 14 | 鸡丁、花生、干辣椒 |
-| 午餐 | 清蒸鲈鱼 | 160 | 22 | 2 | 8 | 鲈鱼、姜葱 |
-| 午餐 | 蒜蓉西兰花 | 55 | 4 | 8 | 2 | 西兰花、蒜 |
-| 午餐 | 米饭（两） | 230 | 4 | 50 | 0.5 | 白米饭 |
-| 晚餐 | 红烧肉 | 450 | 18 | 12 | 38 | 五花肉、酱油 |
-| 晚餐 | 酸辣土豆丝 | 95 | 2 | 18 | 3 | 土豆、醋、辣椒 |
-| 晚餐 | 紫菜蛋花汤 | 45 | 4 | 3 | 2 | 紫菜、鸡蛋 |
+> 这是个人项目整理的数据集，非深圳大学官方发布或维护。价格和供应情况请以食堂现场菜单为准；热量与备注为项目数据库中的估算与整理字段，仅供参考。
 
 ---
 
@@ -87,6 +81,8 @@
 
 ```
 recipe/
+├── data/
+│   └── 2026-szu-south-canteen-2f/ # 185 条真实食堂菜谱（CSV / JSON / SQL）
 ├── index.html          # 入口 HTML，lang=zh-CN，viewport/安全区/importmap
 ├── index.tsx           # 应用入口与全部 UI 逻辑（单文件架构）
 ├── index.css           # 全局样式、Tailwind 入口、@theme、safe-area/no-scrollbar
@@ -178,7 +174,7 @@ VITE_SUPABASE_ANON_KEY=你的_Supabase_anon_key
 ### Supabase 表说明
 
 1. **菜品与营养成分**
-   - `canteen_dishes` / `restaurant_menu`：深大食堂菜单与营养数据，方案页选择「深大南区」时从这里拉真实菜谱。
+   - `canteen_dishes` / `restaurant_menu`：深大食堂菜单与营养数据，方案页选择「深大南区」时从这里拉真实菜谱；`restaurant_menu` 的公开数据已整理至 [`data/2026-szu-south-canteen-2f/`](./data/2026-szu-south-canteen-2f/)。
    - `food_nutrition_authority`：权威营养成分表（按菜名精算拍照识别结果）。
 2. **用户登录与档案**
    - 登录邮箱：内置表 `auth.users`（Supabase Authentication → Users）。
@@ -212,7 +208,8 @@ VITE_SUPABASE_ANON_KEY=你的_Supabase_anon_key
 ## 数据与隐私
 
 - **本地数据**：未登录用户的档案、每日摄入、饮水量、食堂选择等仅存于浏览器 `localStorage`。
-- **云端数据（Supabase）**：登录用户的档案、每日饮食/饮水记录、健康报告与最后一次保存的方案会同步到 Supabase，仅用于本应用功能；表均开启 RLS，仅本人可读写。
+- **开放食堂数据**：`data/2026-szu-south-canteen-2f/` 仅包含菜单公开信息，不包含图片、账号、用户档案、饮食记录、健康报告或密钥。
+- **云端数据（Supabase）**：登录用户的档案、每日饮食/饮水记录、健康报告与最后一次保存的方案会同步到 Supabase，仅用于本应用功能；用户相关表均开启 RLS，仅本人可读写。
 - **AI 数据**：上传的图片与咨询文本会发送至豆包（火山方舟）API，仅用于生成识别结果与回复，需遵守火山引擎/豆包的 API 条款与当地隐私法规。
 - **免责**：所有营养与饮食建议均为 AI 生成、仅供参考，不构成医疗诊断；重大饮食或健康决策请咨询专业医生或营养师。
 - **清空数据**：档案页提供「清空数据库记录」，会清除所有本地数据并重新进入引导流程。
@@ -222,7 +219,8 @@ VITE_SUPABASE_ANON_KEY=你的_Supabase_anon_key
 ## 版本与许可
  
 - **版本**：2.2.0（见应用内「关于 Recipe」与 `package.json`）
-- **许可**：[MIT](./LICENSE) —— 可自由使用、修改、分发，请保留版权声明。
+- **代码许可**：[MIT](./LICENSE) —— 可自由使用、修改、分发，请保留版权声明。
+- **数据许可**：[CC BY 4.0](./data/2026-szu-south-canteen-2f/LICENSE.md) —— 使用或再分发“2026年深圳大学南区二楼食堂菜谱”时请署名并注明是否修改。
 
 ---
 

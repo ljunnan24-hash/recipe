@@ -1,0 +1,41 @@
+{
+  "title": "2026年深圳大学南区二楼食堂菜谱",
+  "description": "深圳大学南区二楼食堂菜单的结构化菜品数据。",
+  "source": "深圳大学南区二楼食堂菜单",
+  "source_table": "public.restaurant_menu",
+  "export_date": "2026-08-28",
+  "record_count": 185,
+  "field_count": 6,
+  "categories": {
+    "6元小炒": 10,
+    "7-8元档": 8,
+    "煲仔菜": 5,
+    "肠粉早餐": 1,
+    "抄手/水饺": 6,
+    "川湘菜": 17,
+    "大碗面/粉": 5,
+    "大众蛋类": 3,
+    "大众豆制品": 3,
+    "大众肉片": 4,
+    "大众素食": 20,
+    "风味晚餐": 30,
+    "基础早餐": 15,
+    "教师窗口": 22,
+    "烧腊套餐": 4,
+    "特色小炒": 10,
+    "晚餐糖水": 3,
+    "现炒粉面": 10,
+    "炸酱盖浇面": 9
+  },
+  "formats": [
+    "CSV",
+    "JSON",
+    "SQL"
+  ],
+  "images_included": false,
+  "personal_data_included": false,
+  "license": "CC-BY-4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/"
+}
+
+
